@@ -1,51 +1,103 @@
-from decimal import Decimal
+import os
+import google.generativeai as genai
+from decimal import Decimal, ROUND_HALF_UP
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class ValuationService:
     """
-    Handles core investment math and strategy checks.
+    Service layer for financial analysis and AI-driven commentary.
+    Contains business logic for the NGX Fundamental Analysis project.
     """
 
     @staticmethod
-    def calculate_efficiency_metrics(analysis_obj):
+    def calculate_layer1_metrics(analysis_obj):
         """
-        Calculates the Layer 1 (Efficiency) metrics.
-        Takes an IntrinsicAnalysis model instance as input.
+        Calculates efficiency, cash conversion, and dividend safety.
+
+        Args:
+            analysis_obj: An instance of the IntrinsicAnalysis Django model.
+
+        Returns:
+            dict: A nested dictionary of raw percentages and strategy flags.
         """
-        data = analysis_obj
+        d = analysis_obj
 
-        # 1. Adjusted EBIT (Removing one-off fluff)
-        adj_ebit = data.operating_profit + data.finance_income - data.one_off_gains
+        # Standardize inputs to Decimal for precision across different OS
+        pat = Decimal(str(d.profit_after_tax))
+        fcf = Decimal(str(d.free_cash_flow))
+        total_equity = Decimal(str(d.total_equity))
+        total_debt = Decimal(str(d.total_debt))
 
-        # 2. NOPAT
-        nopat = adj_ebit - data.tax_expenses
+        # 1. Operational Logic (NOPAT)
+        # NOPAT represents the business profitability if it had no debt.
+        adj_ebit = Decimal(str(d.operating_profit + d.finance_income - d.one_off_gains))
+        nopat = adj_ebit - Decimal(str(d.tax_expenses))
 
-        # 3. ROIC Calculation
-        invested_capital = data.total_equity + data.total_debt
-        raw_roic = (data.profit_after_tax + data.finance_cost) / invested_capital if invested_capital > 0 else 0
+        # 2. Return on Invested Capital (Efficiency)
+        invested_capital = total_equity + total_debt
+        roic = (pat + Decimal(str(d.finance_cost))) / invested_capital if invested_capital > 0 else Decimal('0')
 
-        # 4. Real ROIC (Accounting for Inflation)
-        # Convert inflation to decimal (e.g., 15.10 -> 0.151)
-        inflation_decimal = data.current_inf / 100
-        real_roic = raw_roic - inflation_decimal
+        # 3. Real ROIC (Inflation-Adjusted Hurdle)
+        inflation_rate = Decimal(str(d.current_inf)) / Decimal('100')
+        real_roic = roic - inflation_rate
 
-        # 5. FCF Conversion
-        fcf_conv = data.free_cash_flow / data.profit_after_tax if data.profit_after_tax != 0 else 0
+        # 4. Cash Flow & Dividend Safety
+        fcf_conversion = fcf / pat if pat != 0 else Decimal('0')
+        market_cap = Decimal(str(d.total_os)) * Decimal(str(d.current_sp))
+        payout_ratio = Decimal(str(d.total_div)) / pat if pat > 0 else Decimal('0')
 
         return {
-            "adj_ebit": adj_ebit,
-            "nopat": nopat,
-            "roic_percent": round(raw_roic * 100, 2),
-            "real_roic_percent": round(real_roic * 100, 2),
-            "fcf_conversion_percent": round(fcf_conv * 100, 2),
-            "is_efficient": raw_roic >= 0.20,
-            "is_cash_rich": fcf_conv >= 0.70
+            "raw": {
+                "nopat": nopat,
+                "roic": (roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "real_roic": (real_roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "fcf_conv": (fcf_conversion * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "payout": (payout_ratio * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+            },
+            "flags": {
+                "is_efficient": roic >= Decimal('0.20'),
+                "is_cash_backed": fcf_conversion >= Decimal('0.70'),
+                "is_wealth_creator": real_roic > 0,
+                "healthy_payout": Decimal('0.30') <= payout_ratio <= Decimal('0.70'),
+            }
         }
 
     @staticmethod
-    def get_ai_commentary(metrics):
+    def get_ai_memo(ticker, metrics):
         """
-        Placeholder for the AI API call.
-        We will implement the Gemini API here next.
+        Fetches an AI-generated investment commentary based on calculated metrics.
+
+        Args:
+            ticker (str): The stock symbol.
+            metrics (dict): The dictionary returned by calculate_layer1_metrics.
+
+        Returns:
+            str: Professional commentary or a fallback message if API fails.
         """
-        # Logic: If ROIC is high but FCF is low, prompt AI to explain the risk.
-        pass
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return "AI Commentary unavailable: Missing API Key."
+
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-3-flash')
+
+            prompt = f"""
+            Analyze {ticker} on the Nigerian Stock Exchange with these metrics:
+            - ROIC: {metrics['raw']['roic']}%
+            - Real ROIC (v Inflation): {metrics['raw']['real_roic']}%
+            - FCF Conversion: {metrics['raw']['fcf_conv']}%
+            - Payout Ratio: {metrics['raw']['payout']}%
+
+            Context: ROIC > 20% is efficient. FCF > 70% is healthy cash.
+            Task: Provide a professional, objective analysis. Praise strengths,
+            explain risks, and evaluate the dividend safety for the Nigerian market.
+            """
+
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"Error generating AI memo: {str(e)}"
