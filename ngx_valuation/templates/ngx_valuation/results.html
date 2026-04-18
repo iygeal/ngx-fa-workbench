@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-slate-800 pb-6">
+        <div>
+            <h1 class="text-4xl font-bold text-white tracking-tight">{{ analysis.ticker }}</h1>
+            <p class="text-slate-400">Analysis Date: {{ analysis.analysis_date|date:"F d, Y" }}</p>
+        </div>
+        <div class="flex gap-4 mt-4 md:mt-0">
+            <a href="{% url 'export_pdf' analysis.pk %}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-lg transition">
+                Export PDF
+            </a>
+            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded shadow-lg transition">
+                Print / Save Image
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+            <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROIC</p>
+            <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                {{ results.raw.roic }}%
+            </p>
+            <p class="text-xs mt-2 {% if results.flags.is_wealth_creator %}text-emerald-500{% else %}text-rose-400{% endif %}">
+                Real ROIC: {{ results.raw.real_roic }}%
+            </p>
+        </div>
+
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+            <p class="text-slate-400 text-sm font-medium uppercase mb-1">FCF Conversion</p>
+            <p class="text-3xl font-bold {% if results.flags.is_cash_backed %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                {{ results.raw.fcf_conv }}%
+            </p>
+            <p class="text-xs mt-2 text-slate-500 italic">Target: 70%+</p>
+        </div>
+
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+            <p class="text-slate-400 text-sm font-medium uppercase mb-1">Div. Yield</p>
+            <p class="text-3xl font-bold text-white">{{ results.raw.div_yield }}%</p>
+            <p class="text-xs mt-2 text-slate-500">Payout: {{ results.raw.payout }}%</p>
+        </div>
+
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+            <p class="text-slate-400 text-sm font-medium uppercase mb-1">NOPAT</p>
+            <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat|floatformat:2 }}</p>
+            <p class="text-xs mt-2 text-slate-500">Net Op. Profit After Tax</p>
+        </div>
+    </div>
+
+    <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
+        <div class="bg-slate-800 px-6 py-4 border-b border-slate-700">
+            <h3 class="text-lg font-semibold text-indigo-300 flex items-center">
+                <span class="mr-2">🤖</span> AI Investment Memo
+            </h3>
+        </div>
+        <div class="p-8 prose prose-invert max-w-none leading-relaxed text-slate-300">
+            {{ analysis.ai_commentary|linebreaks }}
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .bg-slate-950 { background-color: white !important; color: black !important; }
+        .bg-slate-900 { border: 1px solid #e2e8f0 !important; background-color: #f8fafc !important; color: black !important; }
+        button, a { display: none !important; }
+        .text-emerald-400 { color: #059669 !important; }
+        .text-rose-500 { color: #dc2626 !important; }
+    }
+</style>
+{% endblock %}

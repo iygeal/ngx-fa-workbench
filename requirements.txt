@@ -6,6 +6,8 @@ charset-normalizer==3.4.7
 cryptography==46.0.7
 dj-database-url==3.1.2
 Django==5.2.13
+django-environ==0.13.0
+dotenv==0.9.9
 google-ai-generativelanguage==0.6.15
 google-api-core==2.30.3
 google-api-python-client==2.194.0
@@ -17,6 +19,7 @@ grpcio==1.80.0
 grpcio-status==1.71.2
 httplib2==0.31.2
 idna==3.11
+pillow==12.2.0
 proto-plus==1.27.2
 protobuf==5.29.6
 psycopg2-binary==2.9.11
@@ -26,6 +29,8 @@ pycparser==3.0
 pydantic==2.13.1
 pydantic_core==2.46.1
 pyparsing==3.3.2
+python-dotenv==1.2.2
+reportlab==4.4.10
 requests==2.33.1
 sqlparse==0.5.5
 tqdm==4.67.3
