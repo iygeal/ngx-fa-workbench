@@ -48,6 +48,8 @@ class ValuationService:
         fcf_conversion = fcf / pat if pat != 0 else Decimal('0')
         market_cap = Decimal(str(d.total_os)) * Decimal(str(d.current_sp))
         payout_ratio = Decimal(str(d.total_div)) / pat if pat > 0 else Decimal('0')
+        div_yield = Decimal(str(d.total_div)) / \
+            market_cap if market_cap > 0 else Decimal('0')
 
         return {
             "raw": {
@@ -56,6 +58,8 @@ class ValuationService:
                 "real_roic": (real_roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "fcf_conv": (fcf_conversion * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "payout": (payout_ratio * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+                # "div_yield": (div_yield * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "div_yield": (div_yield * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
             },
             "flags": {
                 "is_efficient": roic >= Decimal('0.20'),
@@ -83,19 +87,20 @@ class ValuationService:
 
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-flash')
+            model = genai.GenerativeModel(model_name='gemini-flash-latest')
 
             prompt = f"""
-            Analyze {ticker} on the Nigerian Stock Exchange with these metrics:
-            - ROIC: {metrics['raw']['roic']}%
-            - Real ROIC (v Inflation): {metrics['raw']['real_roic']}%
-            - FCF Conversion: {metrics['raw']['fcf_conv']}%
-            - Payout Ratio: {metrics['raw']['payout']}%
+                Act as a senior equity analyst for the Nigerian Stock Exchange.
+                Analyze {ticker} with these metrics: ROIC {metrics['raw']['roic']}%, Real ROIC {metrics['raw']['real_roic']}%, FCF Conv {metrics['raw']['fcf_conv']}%, Payout {metrics['raw']['payout']}%.
 
-            Context: ROIC > 20% is efficient. FCF > 70% is healthy cash.
-            Task: Provide a professional, objective analysis. Praise strengths,
-            explain risks, and evaluate the dividend safety for the Nigerian market.
-            """
+                Format your response with these exact headers:
+                ### 1. Efficiency Check
+                ### 2. Cash & Dividend Safety
+                ### 3. Risk & Macro Verdict
+
+                Use bullet points. Be concise. Avoid conversational filler like "This analysis examines..."
+                Focus on whether the business is a 'Wealth Creator' or 'Wealth Destroyer' in Nigeria's high-inflation environment.
+                """
 
             response = model.generate_content(prompt)
             return response.text
