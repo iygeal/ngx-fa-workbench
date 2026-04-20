@@ -10,7 +10,7 @@ class AnalysisForm(forms.ModelForm):
         # Adding Tailwind classes to the inputs for a clean look
         widgets = {
             field: forms.NumberInput(attrs={
-                'class': 'w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500'
+                'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none',
             }) for field in [
                 'operating_profit', 'finance_income', 'one_off_gains', 'tax_expenses',
                 'profit_after_tax', 'finance_cost', 'total_equity', 'total_debt',
@@ -19,6 +19,6 @@ class AnalysisForm(forms.ModelForm):
         }
         # Special case for the Ticker string input
         widgets['ticker'] = forms.TextInput(attrs={
-            'class': 'w-full p-2 border border-gray-300 rounded uppercase',
+            'class': 'w-full p-2 bg-slate-800 rounded focus:ring-2 focus:ring-indigo-500 outline-none uppercase',
             'placeholder': 'e.g. DANGCEM'
         })

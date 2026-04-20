@@ -8,6 +8,15 @@ from .forms import AnalysisForm
 from .models import IntrinsicAnalysis
 from .services import ValuationService
 
+
+def home_view(request):
+    """
+    Landing page for the workbench.
+    Redirects to Quick Scan or shows a summary of recent analyses.
+    """
+    # For now, we redirect to the Quick Scan to get you straight to work.
+    return redirect('quick_scan')
+
 def quick_scan_view(request):
     """
     Handles the initial data entry for the Layer 1 (Efficiency) scan.

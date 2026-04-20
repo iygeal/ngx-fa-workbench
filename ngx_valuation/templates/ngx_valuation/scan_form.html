@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-8 max-w-5xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Layer 1: Fundamental Quick Scan</h1>
+        <p class="text-slate-400">Input financial data manually from the company's annual or quarterly report.</p>
+    </div>
+
+    <form method="POST" class="space-y-8 bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6 border-b border-slate-800">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Company Ticker</label>
+                {{ form.ticker }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Current Inflation %</label>
+                {{ form.current_inf }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Operating Profit</label>
+                {{ form.operating_profit }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Finance Income</label>
+                {{ form.finance_income }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-rose-400 mb-2">One-off Gains (-)</label>
+                {{ form.one_off_gains }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Tax Expenses</label>
+                {{ form.tax_expenses }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Profit After Tax (PAT)</label>
+                {{ form.profit_after_tax }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Free Cash Flow</label>
+                {{ form.free_cash_flow }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
+            <div>
+                <label class="block text-xs font-bold uppercase text-rose-400 mb-2">Finance Cost (Interest)</label>
+                {{ form.finance_cost }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Total Equity</label>
+                {{ form.total_equity }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Total Debt</label>
+                {{ form.total_debt }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Shares Outstanding</label>
+                {{ form.total_os }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Current Share Price</label>
+                {{ form.current_sp }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Total Dividend Paid</label>
+                {{ form.total_div }}
+            </div>
+        </div>
+
+        <div class="pt-6">
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-[1.01] shadow-lg">
+                Run Fundamental Analysis & Generate AI Memo
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

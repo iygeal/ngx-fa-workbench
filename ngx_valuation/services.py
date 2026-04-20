@@ -83,7 +83,7 @@ class ValuationService:
 
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-3-flash')
+            model = genai.GenerativeModel('gemini-flash')
 
             prompt = f"""
             Analyze {ticker} on the Nigerian Stock Exchange with these metrics:
