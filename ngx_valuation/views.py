@@ -3,6 +3,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from .forms import AnalysisForm
 from .models import IntrinsicAnalysis
@@ -60,32 +63,46 @@ def analysis_results_view(request, pk):
     })
 
 def export_pdf_view(request, pk):
-    """
-    Generates a simple PDF report of the analysis.
-    """
     analysis = get_object_or_404(IntrinsicAnalysis, pk=pk)
+    results = ValuationService.calculate_layer1_metrics(analysis)
 
-    # Create a file-like buffer to receive PDF data.
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
 
-    # Basic PDF drawing (Header)
-    p.drawString(100, 750, f"Investment Analysis Report: {analysis.ticker}")
-    p.drawString(100, 735, f"Date: {analysis.analysis_date.strftime('%Y-%m-%d')}")
+    # Title
+    story.append(Paragraph(f"Financial Analysis: {analysis.ticker}", styles['Title']))
+    story.append(Paragraph(f"Date: {analysis.analysis_date.strftime('%Y-%m-%d')}", styles['Normal']))
+    story.append(Spacer(1, 20))
 
-    # Content (AI Memo) - Simplistic wrap
-    p.drawString(100, 700, "AI Commentary:")
-    text_object = p.beginText(100, 680)
-    text_object.setFont("Helvetica", 10)
+    # Metrics Table
+    data = [
+        ['Metric', 'Value', 'Status'],
+        ['ROIC', f"{results['raw']['roic']}%", 'PASS' if results['flags']['is_efficient'] else 'FAIL'],
+        ['Real ROIC', f"{results['raw']['real_roic']}%", 'PASS' if results['flags']['is_wealth_creator'] else 'FAIL'],
+        ['FCF Conversion', f"{results['raw']['fcf_conv']}%", 'PASS' if results['flags']['is_cash_backed'] else 'FAIL'],
+        ['Div. Yield', f"{results['raw']['div_yield']}%", 'N/A'],
+    ]
 
-    # Basic word wrap for memo
-    lines = analysis.ai_commentary.split('\n')
-    for line in lines:
-        text_object.textLine(line[:100]) # Crude line clipping for now
+    t = Table(data, colWidths=[150, 100, 100])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.slategrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 25))
 
-    p.drawText(text_object)
-    p.showPage()
-    p.save()
+    # AI Commentary
+    story.append(Paragraph("Analyst Commentary", styles['Heading2']))
+    # Basic cleanup of markdown symbols for PDF
+    clean_memo = analysis.ai_commentary.replace('#', '').replace('*', '')
+    story.append(Paragraph(clean_memo, styles['Normal']))
 
+    doc.build(story)
     buffer.seek(0)
     return HttpResponse(buffer, content_type='application/pdf')

@@ -91,7 +91,7 @@ class ValuationService:
 
             prompt = f"""
                 Act as a senior equity analyst for the Nigerian Stock Exchange.
-                Analyze {ticker} with these metrics: ROIC {metrics['raw']['roic']}%, Real ROIC {metrics['raw']['real_roic']}%, FCF Conv {metrics['raw']['fcf_conv']}%, Payout {metrics['raw']['payout']}%.
+                Analyze {ticker} with these metrics: ROIC {metrics['raw']['roic']}%, Real ROIC {metrics['raw']['real_roic']}%, FCF Conv {metrics['raw']['fcf_conv']}%, Div Yield {metrics['raw']['div_yield']}%, Payout {metrics['raw']['payout']}%.
 
                 Format your response with these exact headers:
                 ### 1. Efficiency Check

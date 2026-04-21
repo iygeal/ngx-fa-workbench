@@ -49,16 +49,24 @@
         </div>
     </div>
 
-    <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
-        <div class="bg-slate-800 px-6 py-4 border-b border-slate-700">
-            <h3 class="text-lg font-semibold text-indigo-300 flex items-center">
-                <span class="mr-2">🤖</span> AI Investment Memo
-            </h3>
-        </div>
-        <div class="p-8 prose prose-invert max-w-none leading-relaxed text-slate-300">
-            {{ analysis.ai_commentary|linebreaks }}
-        </div>
+<div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
+    <div class="bg-slate-800/50 px-6 py-3 border-b border-slate-800 flex justify-between items-center">
+        <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center">
+            <span class="mr-2">🚀</span> Analyst Commentary
+        </h3>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded">AI GENERATED</span>
     </div>
+
+    <div class="p-8 prose prose-slate prose-invert max-w-none
+                prose-h3:text-indigo-400 prose-h3:mt-6 prose-h3:mb-2
+                prose-li:text-slate-300 prose-strong:text-white">
+        {{ analysis.ai_commentary|linebreaksbr }}
+        {% load valuation_filters %}
+<div class="prose prose-invert max-w-none">
+    {{ analysis.ai_commentary|markdown }}
+</div>
+    </div>
+</div>
 </div>
 
 <style>
