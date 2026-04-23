@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+ {% load valuation_filters %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
@@ -8,7 +9,9 @@
             <p class="text-slate-400">Analysis Date: {{ analysis.analysis_date|date:"F d, Y" }}</p>
         </div>
         <div class="flex gap-4 mt-4 md:mt-0">
-            <a href="{% url 'export_pdf' analysis.pk %}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-lg transition">
+            <a href="{% url 'export_pdf' analysis.pk %}"
+            target="_blank"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-lg transition">
                 Export PDF
             </a>
             <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded shadow-lg transition">
@@ -58,18 +61,25 @@
     </div>
 
     <div class="p-8 prose prose-slate prose-invert max-w-none
-                prose-h3:text-indigo-400 prose-h3:mt-6 prose-h3:mb-2
-                prose-li:text-slate-300 prose-strong:text-white">
-        {{ analysis.ai_commentary|linebreaksbr }}
-        {% load valuation_filters %}
-<div class="prose prose-invert max-w-none">
-    {{ analysis.ai_commentary|markdown }}
-</div>
+                prose-headings:mb-4 prose-headings:mt-8
+                prose-p:mb-8 prose-p:leading-relaxed
+                prose-li:mb-4">
+        <div class="analysis-content">
+            {{ analysis.ai_commentary|markdown }}
+        </div>
     </div>
 </div>
 </div>
 
 <style>
+    /* Force spacing between all direct children of the commentary */
+    .analysis-content > * {
+        margin-bottom: 1rem !important;
+    }
+    .analysis-content h3 {
+        margin-top: 2rem !important;
+        color: #818cf8 !important; /* Indigo-400 */
+    }
     @media print {
         .bg-slate-950 { background-color: white !important; color: black !important; }
         .bg-slate-900 { border: 1px solid #e2e8f0 !important; background-color: #f8fafc !important; color: black !important; }
