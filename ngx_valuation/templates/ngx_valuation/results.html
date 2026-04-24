@@ -33,10 +33,15 @@
 
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
             <p class="text-slate-400 text-sm font-medium uppercase mb-1">FCF Conversion</p>
-            <p class="text-3xl font-bold {% if results.flags.is_cash_backed %}text-emerald-400{% else %}text-rose-500{% endif %}">
-                {{ results.raw.fcf_conv }}%
-            </p>
-            <p class="text-xs mt-2 text-slate-500 italic">Target: 70%+</p>
+            {% if results.raw.fcf_conv == 0 %}
+                <p class="text-3xl font-bold text-slate-500">N/A</p>
+                <p class="text-xs mt-2 text-slate-600">Not applicable for Banks</p>
+            {% else %}
+                <p class="text-3xl font-bold {% if results.flags.is_cash_backed %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                    {{ results.raw.fcf_conv }}%
+                </p>
+                <p class="text-xs mt-2 text-slate-500 italic">Target: 70%+</p>
+            {% endif %}
         </div>
 
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">

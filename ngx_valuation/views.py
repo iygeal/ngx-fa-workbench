@@ -87,90 +87,80 @@ def export_pdf_view(request, pk):
     story.append(Paragraph(f"Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
     story.append(Spacer(1, 20))
 
-    # 3. METRICS TABLE (THE MISSING PIECE)
+    # 3. METRICS TABLE WITH BANK LOGIC
     def get_color(flag): return colors.darkgreen if flag else colors.maroon
 
+    # Check if it's a bank once at the start
+    is_bank = "bank" in analysis.ticker.lower()
+
+    # Build the data rows dynamically
     data = [
         ['LAYER 1 METRIC', 'VALUE', 'STATUS'],
         ['ROIC', f"{results['raw']['roic']}%", "PASS" if results['flags']['is_efficient'] else "FAIL"],
         ['Real ROIC', f"{results['raw']['real_roic']}%", "PASS" if results['flags']['is_wealth_creator'] else "FAIL"],
-        ['FCF Conversion', f"{results['raw']['fcf_conv']}%", "PASS" if results['flags']['is_cash_backed'] else "FAIL"],
-        ['Dividend Yield', f"{results['raw']['div_yield']}%", "N/A"],
-        ['Payout Ratio', f"{results['raw']['payout']}%", "HEALTHY" if results['flags']['healthy_payout'] else "CAUTION"],
     ]
+
+    # Handle FCF row based on sector
+    if is_bank:
+        data.append(['FCF Conversion', 'N/A', 'SECTOR EXEMPT'])
+    else:
+        data.append(['FCF Conversion', f"{results['raw']['fcf_conv']}%", "PASS" if results['flags']['is_cash_backed'] else "FAIL"])
+
+    data.append(['Dividend Yield', f"{results['raw']['div_yield']}%", "N/A"])
+    data.append(['Payout Ratio', f"{results['raw']['payout']}%", "HEALTHY" if results['flags']['healthy_payout'] else "CAUTION"])
 
     t = Table(data, colWidths=[200, 100, 100])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')), # Slate-800
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        # Metric-Specific Coloring
+        # Metric-Specific Coloring (Conditional on indices)
         ('TEXTCOLOR', (2, 1), (2, 1), get_color(results['flags']['is_efficient'])),
         ('TEXTCOLOR', (2, 2), (2, 2), get_color(results['flags']['is_wealth_creator'])),
-        ('TEXTCOLOR', (2, 3), (2, 3), get_color(results['flags']['is_cash_backed'])),
     ]))
+
+    # Only apply FCF color if not a bank (to avoid row index errors)
+    if not is_bank:
+        t.setStyle(TableStyle([('TEXTCOLOR', (2, 3), (2, 3), get_color(results['flags']['is_cash_backed']))]))
+    else:
+        t.setStyle(TableStyle([('TEXTCOLOR', (2, 3), (2, 3), colors.slategrey)]))
+
     story.append(t)
     story.append(Spacer(1, 25))
 
-    # 4. ANALYST COMMENTARY (LINE-BY-LINE PROCESSING)
+    # 4. ANALYST COMMENTARY
     story.append(Paragraph("Analyst Commentary", styles['Heading2']))
     story.append(Spacer(1, 10))
 
-    # Styles for the commentary
-    header_style = ParagraphStyle(
-        'CommentaryHeader',
-        parent=styles['Normal'],
-        fontSize=11,
-        textColor=colors.HexColor('#4f46e5'), # Indigo
-        fontName='Helvetica-Bold',
-        spaceBefore=10,
-        spaceAfter=4
-    )
+    header_style = ParagraphStyle('CommentaryHeader', parent=styles['Normal'], fontSize=11,
+                                  textColor=colors.HexColor('#4f46e5'), fontName='Helvetica-Bold',
+                                  spaceBefore=10, spaceAfter=4)
 
-    body_style = ParagraphStyle(
-        'CommentaryBody',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        leftIndent=10,
-        spaceAfter=6
-    )
+    body_style = ParagraphStyle('CommentaryBody', parent=styles['Normal'], fontSize=10,
+                                 leading=14, leftIndent=10, spaceAfter=6)
 
-    # Split and process lines individually to prevent style bleeding
     lines = analysis.ai_commentary.split('\n')
     for line in lines:
         line = line.strip()
-        if not line:
-            continue
-
-        # Headers
+        if not line: continue
         if line.startswith('###'):
-            clean_header = line.replace('###', '').strip()
-            story.append(Paragraph(clean_header, header_style))
-
-        # Bullet points with Bold Headers
+            story.append(Paragraph(line.replace('###', '').strip(), header_style))
         elif line.startswith('*'):
-            # Convert **Title:** to <b>Title:</b>
+            formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line).replace('*', '&bull;', 1)
+            story.append(Paragraph(formatted, body_style))
+        else:
             formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
-            # Swap asterisk for a bullet point
-            formatted = formatted.replace('*', '&bull;', 1)
             story.append(Paragraph(formatted, body_style))
 
-        # Standard paragraphs
-        else:
-            formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', formatted) if '**' in line else line
-            story.append(Paragraph(line, body_style))
-
-    # 5. RESPONSE GENERATION
+    # 5. GENERATE AND RETURN
     doc.build(story)
     buffer.seek(0)
 
     filename = f"{slugify(analysis.ticker)}_Analysis_{analysis.analysis_date.strftime('%Y-%m-%d')}.pdf"
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="{filename}"'
-
     return response

@@ -22,3 +22,18 @@ class AnalysisForm(forms.ModelForm):
             'class': 'w-full p-2 bg-slate-800 rounded focus:ring-2 focus:ring-indigo-500 outline-none uppercase',
             'placeholder': 'e.g. DANGCEM'
         })
+
+
+    def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Optional fields that can be left blank without validation errors
+            optional_fields = [
+                'one_off_gains',
+                'finance_cost',
+                'free_cash_flow',
+                'total_debt',
+                'finance_income',
+                'total_div'
+            ]
+            for field in optional_fields:
+                self.fields[field].required = False

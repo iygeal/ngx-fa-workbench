@@ -7,19 +7,20 @@ class IntrinsicAnalysis(models.Model):
 
     # --- Raw Manual Inputs ---
     operating_profit = models.DecimalField(max_digits=20, decimal_places=2)
-    finance_income = models.DecimalField(max_digits=20, decimal_places=2)
-    one_off_gains = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    finance_income = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    one_off_gains = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True, default=0)
     tax_expenses = models.DecimalField(max_digits=20, decimal_places=2)
     profit_after_tax = models.DecimalField(max_digits=20, decimal_places=2)
-    finance_cost = models.DecimalField(max_digits=20, decimal_places=2)
+    finance_cost = models.DecimalField(
+        max_digits=20, decimal_places=2, null=True, blank=True)
     total_equity = models.DecimalField(max_digits=20, decimal_places=2)
-    total_debt = models.DecimalField(max_digits=20, decimal_places=2)
-    free_cash_flow = models.DecimalField(max_digits=20, decimal_places=2)
+    total_debt = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    free_cash_flow = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
 
     # --- Market & Dividend Data ---
     total_os = models.DecimalField(max_digits=20, decimal_places=2, verbose_name="Total Shares Outstanding")
     current_sp = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Current Share Price")
-    total_div = models.DecimalField(max_digits=20, decimal_places=2, default=0, verbose_name="Total Dividend Paid")
+    total_div = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True, default=0, verbose_name="Total Dividend Paid")
 
     # --- Macro Context ---
     current_inf = models.DecimalField(max_digits=5, decimal_places=2, default=15.10, verbose_name="Inflation %")

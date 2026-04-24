@@ -1,6 +1,6 @@
 import os
 import google.generativeai as genai
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -11,6 +11,29 @@ class ValuationService:
     Service layer for financial analysis and AI-driven commentary.
     Contains business logic for the NGX Fundamental Analysis project.
     """
+
+    @staticmethod
+    def _parse_fin(value):
+        """
+        Internal utility to handle nullable fields and 'dirty' data.
+        Ensures that None, empty strings, or strings like 'None'
+        safely default to Decimal('0').
+        """
+        if value is None:
+            return Decimal('0')
+
+        # Convert to string and remove common formatting artifacts
+        # This handles cases where data might have commas (e.g., "1,200.50")
+        clean_val = str(value).strip().replace(',', '')
+
+        # Check for empty strings or string-representations of nulls
+        if not clean_val or clean_val.lower() in ['none', 'null', 'nan', '-']:
+            return Decimal('0')
+
+        try:
+            return Decimal(clean_val)
+        except (InvalidOperation, TypeError):
+            return Decimal('0')
 
     @staticmethod
     def calculate_layer1_metrics(analysis_obj):
@@ -27,18 +50,22 @@ class ValuationService:
 
         # Standardize inputs to Decimal for precision across different OS
         pat = Decimal(str(d.profit_after_tax))
-        fcf = Decimal(str(d.free_cash_flow))
+        fcf = ValuationService._parse_fin(d.free_cash_flow)
         total_equity = Decimal(str(d.total_equity))
-        total_debt = Decimal(str(d.total_debt))
+        total_debt = ValuationService._parse_fin(d.total_debt)
+        total_div = ValuationService._parse_fin(d.total_div)
+        one_off_gains = ValuationService._parse_fin(d.one_off_gains)
+        finance_income = ValuationService._parse_fin(d.finance_income)
+        finance_cost = ValuationService._parse_fin(d.finance_cost)
 
         # 1. Operational Logic (NOPAT)
         # NOPAT represents the business profitability if it had no debt.
-        adj_ebit = Decimal(str(d.operating_profit + d.finance_income - d.one_off_gains))
+        adj_ebit = Decimal(str(d.operating_profit + finance_income - one_off_gains))
         nopat = adj_ebit - Decimal(str(d.tax_expenses))
 
         # 2. Return on Invested Capital (Efficiency)
         invested_capital = total_equity + total_debt
-        roic = (pat + Decimal(str(d.finance_cost))) / invested_capital if invested_capital > 0 else Decimal('0')
+        roic = (pat + finance_cost) / invested_capital if invested_capital > 0 else Decimal('0')
 
         # 3. Real ROIC (Inflation-Adjusted Hurdle)
         inflation_rate = Decimal(str(d.current_inf)) / Decimal('100')
@@ -47,8 +74,8 @@ class ValuationService:
         # 4. Cash Flow & Dividend Safety
         fcf_conversion = fcf / pat if pat != 0 else Decimal('0')
         market_cap = Decimal(str(d.total_os)) * Decimal(str(d.current_sp))
-        payout_ratio = Decimal(str(d.total_div)) / pat if pat > 0 else Decimal('0')
-        div_yield = Decimal(str(d.total_div)) / \
+        payout_ratio = total_div / pat if pat > 0 else Decimal('0')
+        div_yield = total_div / \
             market_cap if market_cap > 0 else Decimal('0')
 
         return {
@@ -98,7 +125,7 @@ class ValuationService:
                 ### 2. Cash & Dividend Safety
                 ### 3. Risk & Macro Verdict
 
-                Use bullet points. Be concise. Avoid conversational filler like "This analysis examines..."
+                Use bullet points. Be concise, straight to the point. Avoid conversational filler like "This analysis examines..."
                 Focus on whether the business is a 'Wealth Creator' or 'Wealth Destroyer' in Nigeria's high-inflation environment.
                 """
 
