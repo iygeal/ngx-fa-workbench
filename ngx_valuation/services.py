@@ -37,56 +37,53 @@ class ValuationService:
 
     @staticmethod
     def calculate_layer1_metrics(analysis_obj):
-        """
-        Calculates efficiency, cash conversion, and dividend safety.
-
-        Args:
-            analysis_obj: An instance of the IntrinsicAnalysis Django model.
-
-        Returns:
-            dict: A nested dictionary of raw percentages and strategy flags.
-        """
         d = analysis_obj
 
-        # Standardize inputs to Decimal for precision across different OS
+        # Standardize inputs (all in 000s)
+        op_profit = Decimal(str(d.operating_profit))
+        finance_income = ValuationService._parse_fin(d.finance_income)
+        one_off_gains = ValuationService._parse_fin(d.one_off_gains)
+        tax_expenses = Decimal(str(d.tax_expenses))
+
+        # NOPAT represents the business profitability if it had no debt.
+        adj_ebit = op_profit + finance_income - one_off_gains
+        nopat = adj_ebit - tax_expenses
+
         pat = Decimal(str(d.profit_after_tax))
         fcf = ValuationService._parse_fin(d.free_cash_flow)
         total_equity = Decimal(str(d.total_equity))
         total_debt = ValuationService._parse_fin(d.total_debt)
         total_div = ValuationService._parse_fin(d.total_div)
-        one_off_gains = ValuationService._parse_fin(d.one_off_gains)
-        finance_income = ValuationService._parse_fin(d.finance_income)
         finance_cost = ValuationService._parse_fin(d.finance_cost)
 
-        # 1. Operational Logic (NOPAT)
-        # NOPAT represents the business profitability if it had no debt.
-        adj_ebit = Decimal(str(d.operating_profit + finance_income - one_off_gains))
-        nopat = adj_ebit - Decimal(str(d.tax_expenses))
-
-        # 2. Return on Invested Capital (Efficiency)
+        # 1. ROIC Calculation (Inputs are all in 000s, so units cancel out correctly)
         invested_capital = total_equity + total_debt
         roic = (pat + finance_cost) / invested_capital if invested_capital > 0 else Decimal('0')
 
-        # 3. Real ROIC (Inflation-Adjusted Hurdle)
-        inflation_rate = Decimal(str(d.current_inf)) / Decimal('100')
+        # 2. Real ROIC (Uses the manual inflation input)
+        inf_input = Decimal(str(d.current_inf))
+        inflation_rate = inf_input / Decimal('100')
         real_roic = roic - inflation_rate
 
-        # 4. Cash Flow & Dividend Safety
-        fcf_conversion = fcf / pat if pat != 0 else Decimal('0')
+        # 3. Dividend & Market Cap Logic
+        # Convert total_div (000s) to full units to match Share Price * OS
+        total_div_full = total_div * Decimal('1000')
         market_cap = Decimal(str(d.total_os)) * Decimal(str(d.current_sp))
+
+        fcf_conversion = fcf / pat if pat != 0 else Decimal('0')
         payout_ratio = total_div / pat if pat > 0 else Decimal('0')
-        div_yield = total_div / \
-            market_cap if market_cap > 0 else Decimal('0')
+        div_yield = total_div_full / market_cap if market_cap > 0 else Decimal('0')
 
         return {
             "raw": {
-                "nopat": nopat,
+                # We quantize NOPAT to 0 decimal places for a clean 'N' box display
+                "nopat": nopat.quantize(Decimal('1'), ROUND_HALF_UP),
                 "roic": (roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "real_roic": (real_roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "fcf_conv": (fcf_conversion * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "payout": (payout_ratio * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
-                # "div_yield": (div_yield * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "div_yield": (div_yield * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "inflation_used": inf_input # Sent to AI to ensure consistency
             },
             "flags": {
                 "is_efficient": roic >= Decimal('0.20'),
@@ -118,15 +115,24 @@ class ValuationService:
 
             prompt = f"""
                 Act as a senior equity analyst for the Nigerian Stock Exchange.
-                Analyze {ticker} with these metrics: ROIC {metrics['raw']['roic']}%, Real ROIC {metrics['raw']['real_roic']}%, FCF Conv {metrics['raw']['fcf_conv']}%, Div Yield {metrics['raw']['div_yield']}%, Payout {metrics['raw']['payout']}%.
+                Analyze {ticker} with these metrics:
+                - ROIC: {metrics['raw']['roic']}%
+                - Real ROIC: {metrics['raw']['real_roic']}%
+                - Headline Inflation: {metrics['raw']['inflation_used']}%
+                - FCF Conversion: {metrics['raw']['fcf_conv']}%
+                - Dividend Yield: {metrics['raw']['div_yield']}%
+                - Payout Ratio: {metrics['raw']['payout']}%
 
-                Format your response with these exact headers:
+                STRICT INSTRUCTION: Use the Headline Inflation of {metrics['raw']['inflation_used']}% for your analysis.
+                Do not use your internal knowledge of current or historical Nigerian inflation.
+
+                Format with these headers:
                 ### 1. Efficiency Check
                 ### 2. Cash & Dividend Safety
                 ### 3. Risk & Macro Verdict
 
-                Use bullet points. Be concise, straight to the point. Avoid conversational filler like "This analysis examines..."
-                Focus on whether the business is a 'Wealth Creator' or 'Wealth Destroyer' in Nigeria's high-inflation environment.
+                Focus on whether the business is a 'Wealth Creator' or 'Wealth Destroyer'.
+                A business is a Wealth Destroyer if Real ROIC is negative.
                 """
 
             response = model.generate_content(prompt)
