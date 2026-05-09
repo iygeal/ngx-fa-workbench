@@ -124,7 +124,7 @@ class ValuationService:
                 - Payout Ratio: {metrics['raw']['payout']}%
 
                 STRICT INSTRUCTION: Use the Headline Inflation of {metrics['raw']['inflation_used']}% for your analysis.
-                Do not use your internal knowledge of current or historical Nigerian inflation.
+                Do not use your internal knowledge of current or historical Nigerian inflation. Also, dividend yield and payout ratio should only matter in H1 (interim dividend) and H2 (final dividend) and not Q1.
 
                 Format with these headers:
                 ### 1. Efficiency Check

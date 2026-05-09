@@ -1,5 +1,8 @@
 {% extends 'base.html' %}
  {% load valuation_filters %}
+ {% load humanize %}
+
+ {% load finance_filters %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
@@ -52,7 +55,7 @@
 
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
             <p class="text-slate-400 text-sm font-medium uppercase mb-1">NOPAT</p>
-            <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat|floatformat:2 }}</p>
+            <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat | to_billions}}</p>
             <p class="text-xs mt-2 text-slate-500">Net Op. Profit After Tax</p>
         </div>
     </div>
