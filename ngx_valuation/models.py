@@ -22,6 +22,21 @@ class IntrinsicAnalysis(models.Model):
     current_sp = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Current Share Price")
     total_div = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True, default=0, verbose_name="Total Dividend Paid")
 
+
+    # Forward Value Projector
+    QUARTER_CHOICES = [
+        ('Q1', 'Q1 (First Quarter - 3 Months)'),
+        ('Q2', 'Q2 / H1 (Half Year - 6 Months Cumulative)'),
+        ('Q3', 'Q3 (Nine Months - 9 Months Cumulative)'),
+        ('FY', 'FY (Full Year - 12 Months)'),
+    ]
+    report_quarter = models.CharField(
+        max_length=2,
+        choices=QUARTER_CHOICES,
+        default='Q1',
+        verbose_name="Reporting Period"
+    )
+
     # --- Macro Context ---
     current_inf = models.DecimalField(max_digits=5, decimal_places=2, default=15.10, verbose_name="Inflation %")
 
