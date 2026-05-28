@@ -44,6 +44,9 @@ class ValuationService:
         finance_income = ValuationService._parse_fin(d.finance_income)
         one_off_gains = ValuationService._parse_fin(d.one_off_gains)
         tax_expenses = Decimal(str(d.tax_expenses))
+        current_sp = Decimal(str(d.current_sp))
+        total_os = Decimal(str(d.total_os))
+        quarter = d.report_quarter
 
         # NOPAT represents the business profitability if it had no debt.
         adj_ebit = op_profit + finance_income - one_off_gains
@@ -68,11 +71,28 @@ class ValuationService:
         # 3. Dividend & Market Cap Logic
         # Convert total_div (000s) to full units to match Share Price * OS
         total_div_full = total_div * Decimal('1000')
-        market_cap = Decimal(str(d.total_os)) * Decimal(str(d.current_sp))
+        market_cap = total_os * current_sp
 
         fcf_conversion = fcf / pat if pat != 0 else Decimal('0')
         payout_ratio = total_div / pat if pat > 0 else Decimal('0')
         div_yield = total_div_full / market_cap if market_cap > 0 else Decimal('0')
+
+        # --- FORWARD VALUE PROJECTOR LOGIC ---
+        # Convert PAT from thousands back to full base units to calculate accurate EPS
+        pat_full_units = pat * Decimal('1000')
+        interim_eps = pat_full_units / total_os if total_os > 0 else Decimal('0')
+
+        # Assign multiplier map based on the active statement quarter
+        multipliers = {
+            'Q1': Decimal('4'),
+            'Q2': Decimal('2'),
+            'Q3': Decimal('1.333333'),
+            'FY': Decimal('1')
+        }
+        multiplier = multipliers.get(quarter, Decimal('1'))
+
+        forward_eps = interim_eps * multiplier
+        forward_pe = current_sp / forward_eps if forward_eps > 0 else Decimal('0')
 
         return {
             "raw": {
@@ -83,13 +103,20 @@ class ValuationService:
                 "fcf_conv": (fcf_conversion * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "payout": (payout_ratio * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "div_yield": (div_yield * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
-                "inflation_used": inf_input # Sent to AI to ensure consistency
+                "inflation_used": inf_input, # Sent to AI to ensure consistency
+
+                # Forward Valuation Projector Outputs
+                "interim_eps": interim_eps.quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "forward_eps": forward_eps.quantize(Decimal('0.01'), ROUND_HALF_UP),
+                "forward_pe": forward_pe.quantize(Decimal('0.02'), ROUND_HALF_UP),
+                "period_analyzed": quarter
             },
             "flags": {
                 "is_efficient": roic >= Decimal('0.20'),
                 "is_cash_backed": fcf_conversion >= Decimal('0.70'),
                 "is_wealth_creator": real_roic > 0,
                 "healthy_payout": Decimal('0.30') <= payout_ratio <= Decimal('0.70'),
+                "is_undervalued_pe": Decimal('0') < forward_pe <= Decimal('10.00')
             }
         }
 

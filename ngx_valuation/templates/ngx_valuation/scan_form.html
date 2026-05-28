@@ -6,10 +6,27 @@
     <form method="POST" class="space-y-8 bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl">
         {% csrf_token %}
 
+        <!-- Display global or field validation errors if submission fails -->
+        {% if form.errors %}
+        <div class="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
+            <p class="font-bold mb-1">Please fix the following validation errors:</p>
+            <ul class="list-disc pl-5 space-y-1">
+                {% for field, errors in form.errors.items %}
+                    <li><strong>{{ field|title }}:</strong> {{ errors|striptags }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Updated Top Grid Row to accommodate the dropdown (3 columns) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6 border-b border-slate-800">
-            <div class="md:col-span-2">
+            <div>
                 <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Company Ticker</label>
                 {{ form.ticker }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Reporting Period</label>
+                {{ form.report_quarter }}
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Current Inflation %</label>
@@ -23,7 +40,7 @@
                 {{ form.operating_profit }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Finance Income</label>
+                <label class="block text-xs font-bold uppercase text-finance-income mb-2">Finance Income</label>
                 {{ form.finance_income }}
             </div>
             <div>

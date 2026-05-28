@@ -1,8 +1,7 @@
 {% extends 'base.html' %}
- {% load valuation_filters %}
- {% load humanize %}
-
- {% load finance_filters %}
+{% load valuation_filters %}
+{% load humanize %}
+{% load finance_filters %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
@@ -23,7 +22,8 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Modified Grid layout: Added lg:grid-cols-5 to accommodate the 5th card -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
             <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROIC</p>
             <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
@@ -55,28 +55,41 @@
 
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
             <p class="text-slate-400 text-sm font-medium uppercase mb-1">NOPAT</p>
-            <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat | to_billions}}</p>
+            <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat|to_billions }}</p>
             <p class="text-xs mt-2 text-slate-500">Net Op. Profit After Tax</p>
         </div>
-    </div>
 
-<div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
-    <div class="bg-slate-800/50 px-6 py-3 border-b border-slate-800 flex justify-between items-center">
-        <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center">
-            <span class="mr-2">🚀</span> Analyst Commentary
-        </h3>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded">AI GENERATED</span>
-    </div>
-
-    <div class="p-8 prose prose-slate prose-invert max-w-none
-                prose-headings:mb-4 prose-headings:mt-8
-                prose-p:mb-8 prose-p:leading-relaxed
-                prose-li:mb-4">
-        <div class="analysis-content">
-            {{ analysis.ai_commentary|markdown }}
+        <!-- NEW CARD: Added Forward Value Projector -->
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl flex flex-col justify-between">
+            <div>
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">Forward P/E</p>
+                <p class="text-3xl font-bold {% if results.flags.is_undervalued_pe %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                    {{ results.raw.forward_pe }}x
+                </p>
+            </div>
+            <p class="text-xs mt-2 text-slate-500 leading-tight">
+                Proj. FY EPS: <span class="text-slate-300 font-semibold">₦{{ results.raw.forward_eps }}</span> based on {{ results.raw.period_analyzed }}
+            </p>
         </div>
     </div>
-</div>
+
+    <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
+        <div class="bg-slate-800/50 px-6 py-3 border-b border-slate-800 flex justify-between items-center">
+            <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center">
+                <span class="mr-2">🚀</span> Analyst Commentary
+            </h3>
+            <span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded">AI GENERATED</span>
+        </div>
+
+        <div class="p-8 prose prose-slate prose-invert max-w-none
+                    prose-headings:mb-4 prose-headings:mt-8
+                    prose-p:mb-8 prose-p:leading-relaxed
+                    prose-li:mb-4">
+            <div class="analysis-content">
+                {{ analysis.ai_commentary|markdown }}
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -94,6 +107,7 @@
         button, a { display: none !important; }
         .text-emerald-400 { color: #059669 !important; }
         .text-rose-500 { color: #dc2626 !important; }
+        .text-amber-400 { color: #d97706 !important; }
     }
 </style>
 {% endblock %}

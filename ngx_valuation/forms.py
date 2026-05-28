@@ -19,7 +19,10 @@ class AnalysisForm(forms.ModelForm):
             'total_debt': 'Total Debt (in 000s)',
             'free_cash_flow': 'Free Cash Flow (in 000s)',
             'total_div': 'Total Dividend Paid (in 000s)',
-            'total_os': 'Total Shares Outstanding (Full Units)', # OS is usually not in 000s
+            'total_os': 'Total Shares Outstanding (Full Units)',
+            'current_sp': 'Current Share Price (in Naira)',
+            'current_inf': 'Current Inflation Rate (%)',
+            'reporter_quarter': 'Financial Statement Period',
         }
 
         widgets = {
@@ -36,6 +39,11 @@ class AnalysisForm(forms.ModelForm):
         widgets['ticker'] = forms.TextInput(attrs={
             'class': 'w-full p-2 bg-slate-800 rounded focus:ring-2 focus:ring-indigo-500 outline-none uppercase',
             'placeholder': 'e.g. DANGCEM'
+        })
+
+        # Styling our new dropdown widget explicitly
+        widgets['report_quarter'] = forms.Select(attrs={
+            'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none'
         })
 
     def __init__(self, *args, **kwargs):
