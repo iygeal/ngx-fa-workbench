@@ -87,10 +87,9 @@ def export_pdf_view(request, pk):
     story.append(Paragraph(f"Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
     story.append(Spacer(1, 20))
 
-    # 3. METRICS TABLE WITH BANK LOGIC
+    # 3. METRICS TABLE WITH BANK LOGIC & FORWARD PROJECTOR METRICS
     def get_color(flag): return colors.darkgreen if flag else colors.maroon
 
-    # Check if it's a bank once at the start
     is_bank = "bank" in analysis.ticker.lower()
 
     # Build the data rows dynamically
@@ -109,8 +108,14 @@ def export_pdf_view(request, pk):
     data.append(['Dividend Yield', f"{results['raw']['div_yield']}%", "N/A"])
     data.append(['Payout Ratio', f"{results['raw']['payout']}%", "HEALTHY" if results['flags']['healthy_payout'] else "CAUTION"])
 
-    t = Table(data, colWidths=[200, 100, 100])
-    t.setStyle(TableStyle([
+    # NEW ROWS: Forward Value Projector Specs
+    data.append([f"Forward EPS (Proj. {results['raw']['period_analyzed']})", f"N{results['raw']['forward_eps']}", "TRAJECTORY"])
+    data.append(['Forward P/E Ratio', f"{results['raw']['forward_pe']}x", "UNDERVALUED" if results['flags']['is_undervalued_pe'] else "FAIR / PREMIUM"])
+
+    t = Table(data, colWidths=[220, 90, 90])
+
+    # Base table formatting setup
+    t_style = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -118,16 +123,24 @@ def export_pdf_view(request, pk):
         ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        # Metric-Specific Coloring (Conditional on indices)
+        # Metric-Specific Coloring
         ('TEXTCOLOR', (2, 1), (2, 1), get_color(results['flags']['is_efficient'])),
         ('TEXTCOLOR', (2, 2), (2, 2), get_color(results['flags']['is_wealth_creator'])),
-    ]))
+    ]
 
-    # Only apply FCF color if not a bank (to avoid row index errors)
+    t.setStyle(TableStyle(t_style))
+
+    # Apply FCF color if not a bank
     if not is_bank:
         t.setStyle(TableStyle([('TEXTCOLOR', (2, 3), (2, 3), get_color(results['flags']['is_cash_backed']))]))
     else:
         t.setStyle(TableStyle([('TEXTCOLOR', (2, 3), (2, 3), colors.slategrey)]))
+
+    # Dynamic styling rules targeting our newly introduced rows at indices 6 and 7
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0, 6), (-1, 7), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (2, 7), (2, 7), get_color(results['flags']['is_undervalued_pe'])),
+    ]))
 
     story.append(t)
     story.append(Spacer(1, 25))
@@ -141,7 +154,7 @@ def export_pdf_view(request, pk):
                                   spaceBefore=10, spaceAfter=4)
 
     body_style = ParagraphStyle('CommentaryBody', parent=styles['Normal'], fontSize=10,
-                                 leading=14, leftIndent=10, spaceAfter=6)
+                                  leading=14, leftIndent=10, spaceAfter=6)
 
     lines = analysis.ai_commentary.split('\n')
     for line in lines:

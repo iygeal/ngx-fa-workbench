@@ -105,11 +105,13 @@ class ValuationService:
                 "div_yield": (div_yield * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "inflation_used": inf_input, # Sent to AI to ensure consistency
 
+                "current_sp": current_sp.quantize(Decimal('0.01'), ROUND_HALF_UP),
+
                 # Forward Valuation Projector Outputs
                 "interim_eps": interim_eps.quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "forward_eps": forward_eps.quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "forward_pe": forward_pe.quantize(Decimal('0.02'), ROUND_HALF_UP),
-                "period_analyzed": quarter
+                "period_analyzed": quarter,
             },
             "flags": {
                 "is_efficient": roic >= Decimal('0.20'),
@@ -141,26 +143,44 @@ class ValuationService:
             model = genai.GenerativeModel(model_name='gemini-flash-latest')
 
             prompt = f"""
-                Act as a senior equity analyst for the Nigerian Stock Exchange.
-                Analyze {ticker} with these metrics:
-                - ROIC: {metrics['raw']['roic']}%
-                - Real ROIC: {metrics['raw']['real_roic']}%
-                - Headline Inflation: {metrics['raw']['inflation_used']}%
-                - FCF Conversion: {metrics['raw']['fcf_conv']}%
-                - Dividend Yield: {metrics['raw']['div_yield']}%
-                - Payout Ratio: {metrics['raw']['payout']}%
+            Act as a senior equity analyst specializing in the Nigerian Stock Exchange (NGX).
+            Analyze {ticker} using these operational metrics, market data, and forward projections:
 
-                STRICT INSTRUCTION: Use the Headline Inflation of {metrics['raw']['inflation_used']}% for your analysis.
-                Do not use your internal knowledge of current or historical Nigerian inflation. Also, dividend yield and payout ratio should only matter in H1 (interim dividend) and H2 (final dividend) and not Q1.
+            CORE MARKET & MACRO DATA:
+            - Current Share Price: ₦{metrics['raw']['current_sp']}
+            - Headline Inflation Rate: {metrics['raw']['inflation_used']}%
 
-                Format with these headers:
-                ### 1. Efficiency Check
-                ### 2. Cash & Dividend Safety
-                ### 3. Risk & Macro Verdict
+            LAYER 1 OPERATIONAL METRICS:
+            - ROIC: {metrics['raw']['roic']}%
+            - Real ROIC: {metrics['raw']['real_roic']}% (Hurdle Rate = Inflation)
+            - FCF Conversion: {metrics['raw']['fcf_conv']}%
+            - Dividend Yield: {metrics['raw']['div_yield']}%
+            - Payout Ratio: {metrics['raw']['payout']}%
 
-                Focus on whether the business is a 'Wealth Creator' or 'Wealth Destroyer'.
-                A business is a Wealth Destroyer if Real ROIC is negative.
-                """
+            FORWARD VALUATION ENGINE:
+            - Financial Statement Period: {metrics['raw']['period_analyzed']}
+            - Calculated Interim Annualized EPS: ₦{metrics['raw']['interim_eps']}
+            - Projected Full-Year Forward EPS: ₦{metrics['raw']['forward_eps']}
+            - Calculated Forward P/E Ratio: {metrics['raw']['forward_pe']}x
+
+            THEORETICAL FRAMEWORK TO APPLY (Forward Valuation Projector):
+            "This projector states that equity markets are inherently backward-looking time machines that fixate on past historical data, often missing massive inflection points in interim results. The true value of a stock is based on the present value of its future cash flows, meaning stocks trade on forward earnings, not backwards.
+
+            Under this rule, if a company delivers strong earnings acceleration in an interim quarter (like Q1 or H1) that projects a Forward P/E ratio at or below a conservative 10x benchmark or less, for a non-banking stock, it represents an asymmetric value entry point where the market has failed to price in the operational forward momentum."
+
+            STRICT INSTRUCTIONS FOR THE ANALYSIS:
+            1. Use the provided Headline Inflation of {metrics['raw']['inflation_used']}% for your macro assessment. Do not reference internal knowledge of historical Nigerian inflation statistics.
+            2. Dividend tracking metrics must be ignored if the period analyzed is Q1 or Q3. Explicitly state that a 0% dividend yield is typical for Q1 on the NGX and steer the analysis toward how operational efficiency is compounding retained earnings.
+            3. Critically evaluate the current share price (₦{metrics['raw']['current_sp']}) against the Projected Full-Year Forward EPS (₦{metrics['raw']['forward_eps']}) using The Forward Projector Rule. Determine if the resulting Forward P/E of {metrics['raw']['forward_pe']}x represents a mispricing by the market.
+
+            Format your output exactly with these 4 structural markdown headers:
+            ### 1. Efficiency Check
+            ### 2. Cash & Dividend Safety
+            ### 3. Valuation & Trajectory Verdict (Apply Forward Projector Rule here)
+            ### 4. Risk & Macro Verdict
+
+            Focus your tone on whether the business is an operational 'Wealth Creator' or 'Wealth Destroyer' based on its Real ROIC, and integrate the current stock price directly into your valuation narrative to explain why the market is right or wrong.
+            """
 
             response = model.generate_content(prompt)
             return response.text
