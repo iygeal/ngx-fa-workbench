@@ -2,13 +2,16 @@
 from django import forms
 from .models import IntrinsicAnalysis
 
+
 class AnalysisForm(forms.ModelForm):
     class Meta:
         model = IntrinsicAnalysis
         exclude = ['analysis_date', 'ai_commentary']
 
-        # Adding labels to guide '000 input
+        # Labels guiding '000 input and unit expectations
         labels = {
+            'ticker': 'Company Ticker Symbol',
+            'sector': 'Sector Classification',
             'operating_profit': 'Operating Profit (in 000s)',
             'finance_income': 'Finance Income (in 000s)',
             'one_off_gains': 'One-off Gains (in 000s)',
@@ -22,9 +25,10 @@ class AnalysisForm(forms.ModelForm):
             'total_os': 'Total Shares Outstanding (Full Units)',
             'current_sp': 'Current Share Price (in Naira)',
             'current_inf': 'Current Inflation Rate (%)',
-            'reporter_quarter': 'Financial Statement Period',
+            'report_quarter': 'Financial Statement Period',
         }
 
+        # Number input widgets with consistent dark Tailwind styling
         widgets = {
             field: forms.NumberInput(attrs={
                 'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none',
@@ -36,18 +40,32 @@ class AnalysisForm(forms.ModelForm):
             ]
         }
 
+        # Text input widget for ticker
         widgets['ticker'] = forms.TextInput(attrs={
-            'class': 'w-full p-2 bg-slate-800 rounded focus:ring-2 focus:ring-indigo-500 outline-none uppercase',
-            'placeholder': 'e.g. DANGCEM'
+            'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase',
+            'placeholder': 'e.g. DANGCEM, GTCO'
         })
 
-        # Styling our new dropdown widget explicitly
+        # Dropdown selection widgets
+        widgets['sector'] = forms.Select(attrs={
+            'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none'
+        })
+
         widgets['report_quarter'] = forms.Select(attrs={
             'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none'
         })
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        optional_fields = ['one_off_gains', 'finance_cost', 'free_cash_flow', 'total_debt', 'finance_income', 'total_div']
+        # Set optional fields to prevent validation errors when left empty
+        optional_fields = [
+            'one_off_gains',
+            'finance_cost',
+            'free_cash_flow',
+            'total_debt',
+            'finance_income',
+            'total_div'
+        ]
         for field in optional_fields:
-            self.fields[field].required = False
+            if field in self.fields:
+                self.fields[field].required = False
