@@ -7,14 +7,19 @@
 <div class="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
     <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-slate-800 pb-6">
         <div>
-            <h1 class="text-4xl font-bold text-white tracking-tight">{{ analysis.ticker }}</h1>
-            <p class="text-slate-400">Analysis Date: {{ analysis.analysis_date|date:"F d, Y" }}</p>
+            <h1 class="text-4xl font-bold text-white tracking-tight flex items-center gap-3">
+                {{ analysis.ticker }}
+                <span class="text-xs bg-slate-800 border border-slate-700 text-indigo-400 font-normal px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    {% if results.raw.is_bank %}Banking Sector{% else %}Industrial / Non-Bank{% endif %}
+                </span>
+            </h1>
+            <p class="text-slate-400 mt-1">Analysis Date: {{ analysis.analysis_date|date:"F d, Y" }}</p>
         </div>
         <div class="flex gap-4 mt-4 md:mt-0">
             <a href="{% url 'export_pdf' analysis.pk %}"
-            target="_blank"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-lg transition">
-                Export PDF
+               target="_blank"
+               class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-lg transition flex items-center gap-2">
+                <span>📄</span> Export PDF
             </a>
             <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded shadow-lg transition">
                 Print / Save Image
@@ -22,24 +27,40 @@
         </div>
     </div>
 
-    <!-- Modified Grid layout: Added lg:grid-cols-5 to accommodate the 5th card -->
+    <!-- Dynamic 5-Card Metric Dashboard -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+
+        <!-- CARD 1: Operational Efficiency (ROE for Banks, ROIC for Industrial) -->
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
-            <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROIC</p>
-            <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
-                {{ results.raw.roic }}%
-            </p>
-            <p class="text-xs mt-2 {% if results.flags.is_wealth_creator %}text-emerald-500{% else %}text-rose-400{% endif %}">
-                Real ROIC: {{ results.raw.real_roic }}%
-            </p>
+            {% if results.raw.is_bank %}
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROE</p>
+                <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                    {{ results.raw.roe }}%
+                </p>
+                <p class="text-xs mt-2 {% if results.flags.is_wealth_creator %}text-emerald-500{% else %}text-rose-400{% endif %}">
+                    Real ROE: {{ results.raw.real_roe }}%
+                </p>
+            {% else %}
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROIC</p>
+                <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                    {{ results.raw.roic }}%
+                </p>
+                <p class="text-xs mt-2 {% if results.flags.is_wealth_creator %}text-emerald-500{% else %}text-rose-400{% endif %}">
+                    Real ROIC: {{ results.raw.real_roic }}%
+                </p>
+            {% endif %}
         </div>
 
+        <!-- CARD 2: Cash / Cost Structure (Cost-to-Income for Banks, FCF for Industrial) -->
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
-            <p class="text-slate-400 text-sm font-medium uppercase mb-1">FCF Conversion</p>
-            {% if results.raw.fcf_conv == 0 %}
-                <p class="text-3xl font-bold text-slate-500">N/A</p>
-                <p class="text-xs mt-2 text-slate-600">Not applicable for Banks</p>
+            {% if results.raw.is_bank %}
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">Cost-to-Income</p>
+                <p class="text-3xl font-bold text-indigo-400">
+                    {{ results.raw.cost_to_income }}%
+                </p>
+                <p class="text-xs mt-2 text-slate-500">Efficiency Benchmark</p>
             {% else %}
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">FCF Conversion</p>
                 <p class="text-3xl font-bold {% if results.flags.is_cash_backed %}text-emerald-400{% else %}text-rose-500{% endif %}">
                     {{ results.raw.fcf_conv }}%
                 </p>
@@ -47,19 +68,27 @@
             {% endif %}
         </div>
 
+        <!-- CARD 3: Dividend Yield & Payout -->
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
             <p class="text-slate-400 text-sm font-medium uppercase mb-1">Div. Yield</p>
             <p class="text-3xl font-bold text-white">{{ results.raw.div_yield }}%</p>
-            <p class="text-xs mt-2 text-slate-500">Payout: {{ results.raw.payout }}%</p>
+            <p class="text-xs mt-2 text-slate-500">Payout Ratio: {{ results.raw.payout }}%</p>
         </div>
 
+        <!-- CARD 4: Core Earnings Metric (PAT for Banks, NOPAT for Industrial) -->
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
-            <p class="text-slate-400 text-sm font-medium uppercase mb-1">NOPAT</p>
-            <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat|to_billions }}</p>
-            <p class="text-xs mt-2 text-slate-500">Net Op. Profit After Tax</p>
+            {% if results.raw.is_bank %}
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">PAT</p>
+                <p class="text-2xl font-bold text-slate-100">₦{{ analysis.profit_after_tax|to_billions }}</p>
+                <p class="text-xs mt-2 text-slate-500">Profit After Tax</p>
+            {% else %}
+                <p class="text-slate-400 text-sm font-medium uppercase mb-1">NOPAT</p>
+                <p class="text-2xl font-bold text-slate-100">₦{{ results.raw.nopat|to_billions }}</p>
+                <p class="text-xs mt-2 text-slate-500">Net Op. Profit After Tax</p>
+            {% endif %}
         </div>
 
-        <!-- NEW CARD: Added Forward Value Projector -->
+        <!-- CARD 5: Forward Value Projector -->
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl flex flex-col justify-between">
             <div>
                 <p class="text-slate-400 text-sm font-medium uppercase mb-1">Forward P/E</p>
@@ -73,6 +102,7 @@
         </div>
     </div>
 
+    <!-- AI Analyst Commentary Panel -->
     <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
         <div class="bg-slate-800/50 px-6 py-3 border-b border-slate-800 flex justify-between items-center">
             <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center">
@@ -93,7 +123,6 @@
 </div>
 
 <style>
-    /* Force spacing between all direct children of the commentary */
     .analysis-content > * {
         margin-bottom: 1rem !important;
     }
