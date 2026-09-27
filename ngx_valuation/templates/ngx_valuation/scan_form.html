@@ -18,11 +18,15 @@
         </div>
         {% endif %}
 
-        <!-- Updated Top Grid Row to accommodate the dropdown (3 columns) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6 border-b border-slate-800">
+        <!-- Row 1: Primary Entity & Period Configuration (4 Columns) -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-slate-800">
             <div>
                 <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Company Ticker</label>
                 {{ form.ticker }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Sector</label>
+                {{ form.sector }}
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Reporting Period</label>
@@ -34,62 +38,66 @@
             </div>
         </div>
 
+        <!-- Row 2: Earnings & Revenue Inputs -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Operating Profit</label>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Operating Profit / Rev (000s)</label>
                 {{ form.operating_profit }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-finance-income mb-2">Finance Income</label>
+                <label class="block text-xs font-bold uppercase text-indigo-300 mb-2">Finance Income (000s)</label>
                 {{ form.finance_income }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-rose-400 mb-2">One-off Gains (-)</label>
+                <label class="block text-xs font-bold uppercase text-rose-400 mb-2">One-off Gains (-) (000s)</label>
                 {{ form.one_off_gains }}
             </div>
         </div>
 
+        <!-- Row 3: Taxes, Profitability & Cash Flow -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Tax Expenses</label>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Tax Expenses (000s)</label>
                 {{ form.tax_expenses }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Profit After Tax (PAT)</label>
+                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Profit After Tax (PAT) (000s)</label>
                 {{ form.profit_after_tax }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Free Cash Flow</label>
+                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Free Cash Flow (Non-Banks) (000s)</label>
                 {{ form.free_cash_flow }}
             </div>
         </div>
 
+        <!-- Row 4: Balance Sheet & Cost Structure -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
             <div>
-                <label class="block text-xs font-bold uppercase text-rose-400 mb-2">Finance Cost (Interest)</label>
+                <label class="block text-xs font-bold uppercase text-rose-400 mb-2">Finance Cost / Opex (000s)</label>
                 {{ form.finance_cost }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Total Equity</label>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Total Equity (000s)</label>
                 {{ form.total_equity }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Total Debt</label>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Total Debt (Non-Banks) (000s)</label>
                 {{ form.total_debt }}
             </div>
         </div>
 
+        <!-- Row 5: Capital Structure & Distribution -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Shares Outstanding</label>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Shares Outstanding (Full Units)</label>
                 {{ form.total_os }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Current Share Price</label>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Current Share Price (₦)</label>
                 {{ form.current_sp }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Total Dividend Paid</label>
+                <label class="block text-xs font-bold uppercase text-indigo-400 mb-2">Total Dividend Paid (000s)</label>
                 {{ form.total_div }}
             </div>
         </div>
