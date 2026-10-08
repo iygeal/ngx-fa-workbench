@@ -47,26 +47,32 @@ class IntrinsicAnalysis(models.Model):
         max_digits=20, decimal_places=2, default=0, null=True, blank=True
     )
 
-    # --- Balance Sheet & Cash Flow Inputs ---
+    # --- Balance Sheet & Automated Cash Flow Inputs ---
     total_equity = models.DecimalField(max_digits=20, decimal_places=2)
     total_debt = models.DecimalField(
         max_digits=20, decimal_places=2, default=0, null=True, blank=True
     )
-    free_cash_flow = models.DecimalField(
-        max_digits=20, decimal_places=2, null=True, blank=True,
-        help_text="Leave blank or set 0 for banking sector records."
+    net_operating_cash_flow = models.DecimalField(
+        max_digits=20, decimal_places=2, default=0, null=True, blank=True,
+        verbose_name="Net Cash from Operating Activities (in 000s)",
+        help_text="Raw line item from Statement of Cash Flows. Optional/0 for banks."
+    )
+    capex_ppe = models.DecimalField(
+        max_digits=20, decimal_places=2, default=0, null=True, blank=True,
+        verbose_name="Capital Expenditure - Purchase of PPE (in 000s)",
+        help_text="Acquisition of property, plant, and equipment from Statement of Cash Flows. Optional/0 for banks."
     )
 
     # --- Market & Dividend Data ---
     total_os = models.DecimalField(
-        max_digits=20, decimal_places=2, verbose_name="Total Shares Outstanding (Millions)"
+        max_digits=20, decimal_places=2, verbose_name="Total Shares Outstanding (Full Units)"
     )
     current_sp = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name="Current Share Price (₦)"
     )
     total_div = models.DecimalField(
         max_digits=20, decimal_places=2, default=0, null=True, blank=True,
-        verbose_name="Total Dividend Paid (₦)"
+        verbose_name="Total Dividend Paid (in 000s)"
     )
 
     # --- Projection & Macro Context ---
@@ -95,3 +101,12 @@ class IntrinsicAnalysis(models.Model):
     def is_bank(self):
         """Helper check to eliminate fragile ticker string matching across views and PDF logic."""
         return self.sector == 'BANK'
+
+    @property
+    def calculated_fcf(self):
+        """Dynamically derives Free Cash Flow: Operating Cash Flow - Capex (PPE)."""
+        if self.is_bank:
+            return 0
+        ocf = self.net_operating_cash_flow or 0
+        capex = self.capex_ppe or 0
+        return ocf - capex
