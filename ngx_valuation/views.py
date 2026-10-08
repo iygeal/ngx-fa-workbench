@@ -75,6 +75,12 @@ def export_pdf_view(request, pk):
     flags = results['flags']
     is_bank = raw['is_bank']
 
+    # Helper function to sanitize Naira symbols for standard Helvetica rendering
+    def sanitize_currency(text):
+        if not text:
+            return ""
+        return str(text).replace('₦', 'N').replace('₦', 'N')
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -112,8 +118,8 @@ def export_pdf_view(request, pk):
     data.append(['Dividend Yield', f"{raw['div_yield']}%", "N/A"])
     data.append(['Payout Ratio', f"{raw['payout']}%", "HEALTHY" if flags['healthy_payout'] else "CAUTION"])
 
-    # Forward Value Projector Rows
-    data.append([f"Forward EPS (Proj. {raw['period_analyzed']})", f"N{raw['forward_eps']}", "TRAJECTORY"])
+    # Forward Value Projector Rows (Formatted with clear N prefix)
+    data.append([f"Forward EPS (Proj. {raw['period_analyzed']})", f"N {raw['forward_eps']}", "TRAJECTORY"])
     data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x", "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
 
     t = Table(data, colWidths=[220, 90, 90])
@@ -171,7 +177,10 @@ def export_pdf_view(request, pk):
         spaceAfter=6
     )
 
-    lines = analysis.ai_commentary.split('\n')
+    # Sanitize commentary line-by-line before passing to ReportLab Paragraphs
+    clean_commentary = sanitize_currency(analysis.ai_commentary)
+    lines = clean_commentary.split('\n')
+
     for line in lines:
         line = line.strip()
         if not line:
