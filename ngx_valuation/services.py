@@ -71,6 +71,7 @@ class ValuationService:
             nopat = Decimal('0')
             roic = Decimal('0')
             real_roic = Decimal('0')
+            fcf = Decimal('0')
             fcf_conversion = Decimal('0')
         else:
             # --- NON-BANK INDUSTRIAL METRICS ---
@@ -79,7 +80,12 @@ class ValuationService:
 
             finance_cost = ValuationService._parse_fin(d.finance_cost)
             total_debt = ValuationService._parse_fin(d.total_debt)
-            fcf = ValuationService._parse_fin(d.free_cash_flow)
+
+            # Automated FCF Calculation: Net Operating Cash Flow - Capex (PPE)
+            ocf = ValuationService._parse_fin(
+                getattr(d, 'net_operating_cash_flow', 0))
+            capex = ValuationService._parse_fin(getattr(d, 'capex_ppe', 0))
+            fcf = ocf - capex
 
             invested_capital = total_equity + total_debt
             roic = (pat + finance_cost) / \
@@ -120,6 +126,7 @@ class ValuationService:
                 "sector": sector,
                 "is_bank": is_bank,
                 "nopat": nopat.quantize(Decimal('1'), ROUND_HALF_UP),
+                "fcf": fcf.quantize(Decimal('1'), ROUND_HALF_UP),
                 "roic": (roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "real_roic": (real_roic * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
                 "roe": (roe * 100).quantize(Decimal('0.01'), ROUND_HALF_UP),
@@ -176,6 +183,7 @@ class ValuationService:
             LAYER 1 INDUSTRIAL OPERATIONAL METRICS:
             - ROIC: {raw['roic']}%
             - Real ROIC: {raw['real_roic']}% (Hurdle Rate = Inflation: {raw['inflation_used']}%)
+            - Free Cash Flow (Calculated): ₦{raw['fcf']} (in 000s)
             - FCF Conversion: {raw['fcf_conv']}%
             - Dividend Yield: {raw['div_yield']}%
             - Payout Ratio: {raw['payout']}%
