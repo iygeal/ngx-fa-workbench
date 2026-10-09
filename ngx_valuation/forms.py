@@ -17,10 +17,11 @@ class AnalysisForm(forms.ModelForm):
             'one_off_gains': 'One-off Gains (in 000s)',
             'tax_expenses': 'Tax Expenses (in 000s)',
             'profit_after_tax': 'Profit After Tax (in 000s)',
+            'net_operating_cash_flow': 'Net Cash from Operating Activities (in 000s)',
+            'capex_ppe': 'Capital Expenditure - Purchase of PPE (in 000s)',
             'finance_cost': 'Finance Cost (in 000s)',
             'total_equity': 'Total Equity (in 000s)',
             'total_debt': 'Total Debt (in 000s)',
-            'free_cash_flow': 'Free Cash Flow (in 000s)',
             'total_div': 'Total Dividend Paid (in 000s)',
             'total_os': 'Total Shares Outstanding (Full Units)',
             'current_sp': 'Current Share Price (in Naira)',
@@ -35,8 +36,8 @@ class AnalysisForm(forms.ModelForm):
                 'placeholder': 'Enter exact digits from PDF FS'
             }) for field in [
                 'operating_profit', 'finance_income', 'one_off_gains', 'tax_expenses',
-                'profit_after_tax', 'finance_cost', 'total_equity', 'total_debt',
-                'free_cash_flow', 'total_os', 'current_sp', 'total_div', 'current_inf'
+                'profit_after_tax', 'net_operating_cash_flow', 'capex_ppe', 'finance_cost',
+                'total_equity', 'total_debt', 'total_os', 'current_sp', 'total_div', 'current_inf'
             ]
         }
 
@@ -57,11 +58,12 @@ class AnalysisForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Set optional fields to prevent validation errors when left empty
+        # Set optional fields to prevent validation errors when left empty or for Banks
         optional_fields = [
             'one_off_gains',
             'finance_cost',
-            'free_cash_flow',
+            'net_operating_cash_flow',
+            'capex_ppe',
             'total_debt',
             'finance_income',
             'total_div'
