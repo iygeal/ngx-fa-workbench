@@ -38,7 +38,7 @@
             </div>
         </div>
 
-        <!-- Row 2: Earnings & Revenue Inputs -->
+        <!-- Row 2: Operating Results & Adjustments -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Operating Profit / Rev (000s)</label>
@@ -54,7 +54,7 @@
             </div>
         </div>
 
-        <!-- Row 3: Taxes, Profitability & Cash Flow -->
+        <!-- Row 3: Tax, Earnings & Operating Cash Flow -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Tax Expenses (000s)</label>
@@ -65,13 +65,17 @@
                 {{ form.profit_after_tax }}
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Free Cash Flow (Non-Banks) (000s)</label>
-                {{ form.free_cash_flow }}
+                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Net Operating Cash Flow (000s)</label>
+                {{ form.net_operating_cash_flow }}
             </div>
         </div>
 
-        <!-- Row 4: Balance Sheet & Cost Structure -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
+        <!-- Row 4: Capex, Cost Structure & Balance Sheet -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6 border-t border-slate-800">
+            <div>
+                <label class="block text-xs font-bold uppercase text-emerald-400 mb-2">Capex - Purchase of PPE (000s)</label>
+                {{ form.capex_ppe }}
+            </div>
             <div>
                 <label class="block text-xs font-bold uppercase text-rose-400 mb-2">Finance Cost / Opex (000s)</label>
                 {{ form.finance_cost }}
@@ -86,7 +90,7 @@
             </div>
         </div>
 
-        <!-- Row 5: Capital Structure & Distribution -->
+        <!-- Row 5: Market Valuation & Dividend Distribution -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-800">
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Shares Outstanding (Full Units)</label>
