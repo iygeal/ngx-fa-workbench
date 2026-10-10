@@ -1,3 +1,4 @@
+# ngx_valuation/views.py
 import io
 import re
 from django.utils.text import slugify
@@ -17,7 +18,7 @@ from .services import ValuationService
 def home_view(request):
     """
     Landing page for the workbench.
-    Redirects to Quick Scan or shows a summary of recent analyses.
+    Redirects directly to the Layer 1 Quick Scan.
     """
     return redirect('quick_scan')
 
@@ -25,20 +26,21 @@ def home_view(request):
 def quick_scan_view(request):
     """
     Handles the initial data entry for the Layer 1 (Efficiency) scan.
+    Calculates operational metrics and triggers Gemini AI commentary.
     """
     if request.method == "POST":
         form = AnalysisForm(request.POST)
         if form.is_valid():
-            # 1. Save the raw manual inputs
+            # 1. Save raw manual inputs
             analysis = form.save()
 
-            # 2. Run the math via Service Layer
+            # 2. Run mathematical calculations via Service Layer
             results = ValuationService.calculate_layer1_metrics(analysis)
 
-            # 3. Get AI Commentary
+            # 3. Generate AI Commentary
             memo = ValuationService.get_ai_memo(analysis.ticker, results)
 
-            # 4. Save AI memo back to the database object
+            # 4. Save AI memo back to database record
             analysis.ai_commentary = memo
             analysis.save()
 
@@ -54,10 +56,9 @@ def quick_scan_view(request):
 
 def analysis_results_view(request, pk):
     """
-    Displays the calculated metrics and AI memo.
+    Displays calculated metrics and formatted AI investment commentary.
     """
     analysis = get_object_or_404(IntrinsicAnalysis, pk=pk)
-    # Recalculate metrics for display
     results = ValuationService.calculate_layer1_metrics(analysis)
 
     return render(request, 'ngx_valuation/results.html', {
@@ -75,11 +76,11 @@ def export_pdf_view(request, pk):
     flags = results['flags']
     is_bank = raw['is_bank']
 
-    # Helper function to sanitize Naira symbols for standard Helvetica rendering
+    # Helper function to sanitize Unicode Naira symbols to prevent ReportLab '■' missing-glyph glitches
     def sanitize_currency(text):
         if not text:
             return ""
-        return str(text).replace('₦', 'N').replace('₦', 'N')
+        return str(text).replace('₦', 'N')
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -94,37 +95,49 @@ def export_pdf_view(request, pk):
     story = []
 
     # 2. HEADER SECTION
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Title'], fontSize=22, textColor=colors.black, spaceAfter=5)
-    story.append(Paragraph(f"{analysis.ticker} Fundamental Analysis", title_style))
-    story.append(Paragraph(f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
+    title_style = ParagraphStyle(
+        'TitleStyle', parent=styles['Title'], fontSize=22, textColor=colors.black, spaceAfter=5)
+    story.append(
+        Paragraph(f"{analysis.ticker} Fundamental Analysis", title_style))
+    story.append(Paragraph(
+        f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
     story.append(Spacer(1, 20))
 
     # 3. METRICS TABLE WITH BANK vs NON-BANK LOGIC
     def get_color(flag):
         return colors.darkgreen if flag else colors.maroon
 
-    # Build the dynamic data rows depending on entity classification
+    # Build dynamic data rows based on sector
     data = [['LAYER 1 METRIC', 'VALUE', 'STATUS']]
 
     if is_bank:
-        data.append(['ROE', f"{raw['roe']}%", "PASS" if flags['is_efficient'] else "FAIL"])
-        data.append(['Real ROE', f"{raw['real_roe']}%", "PASS" if flags['is_wealth_creator'] else "FAIL"])
-        data.append(['Cost-to-Income Ratio', f"{raw['cost_to_income']}%", "METRIC"])
+        data.append(['ROE', f"{raw['roe']}%",
+                    "PASS" if flags['is_efficient'] else "FAIL"])
+        data.append(['Real ROE', f"{raw['real_roe']}%",
+                    "PASS" if flags['is_wealth_creator'] else "FAIL"])
+        data.append(['Cost-to-Income Ratio',
+                    f"{raw['cost_to_income']}%", "METRIC"])
     else:
-        data.append(['ROIC', f"{raw['roic']}%", "PASS" if flags['is_efficient'] else "FAIL"])
-        data.append(['Real ROIC', f"{raw['real_roic']}%", "PASS" if flags['is_wealth_creator'] else "FAIL"])
-        data.append(['FCF Conversion', f"{raw['fcf_conv']}%", "PASS" if flags['is_cash_backed'] else "FAIL"])
+        data.append(['ROIC', f"{raw['roic']}%",
+                    "PASS" if flags['is_efficient'] else "FAIL"])
+        data.append(['Real ROIC', f"{raw['real_roic']}%",
+                    "PASS" if flags['is_wealth_creator'] else "FAIL"])
+        data.append(['FCF Conversion', f"{raw['fcf_conv']}%",
+                    "PASS" if flags['is_cash_backed'] else "FAIL"])
 
     data.append(['Dividend Yield', f"{raw['div_yield']}%", "N/A"])
-    data.append(['Payout Ratio', f"{raw['payout']}%", "HEALTHY" if flags['healthy_payout'] else "CAUTION"])
+    data.append(['Payout Ratio', f"{raw['payout']}%",
+                "HEALTHY" if flags['healthy_payout'] else "CAUTION"])
 
-    # Forward Value Projector Rows (Formatted with clear N prefix)
-    data.append([f"Forward EPS (Proj. {raw['period_analyzed']})", f"N {raw['forward_eps']}", "TRAJECTORY"])
-    data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x", "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
+    # Forward Value Projector Rows (Formatted with tight N prefix)
+    data.append(
+        [f"Forward EPS (Proj. {raw['period_analyzed']})", f"N{raw['forward_eps']}", "TRAJECTORY"])
+    data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x",
+                "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
 
     t = Table(data, colWidths=[220, 90, 90])
 
-    # Base table formatting setup
+    # Table styling configuration
     t_style = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -138,11 +151,13 @@ def export_pdf_view(request, pk):
         ('TEXTCOLOR', (2, 2), (2, 2), get_color(flags['is_wealth_creator'])),
     ]
 
-    # Sector specific row styling
+    # Sector-specific row styling
     if not is_bank:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), get_color(flags['is_cash_backed'])))
+        t_style.append(('TEXTCOLOR', (2, 3), (2, 3),
+                       get_color(flags['is_cash_backed'])))
     else:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), colors.HexColor('#1e293b')))
+        t_style.append(('TEXTCOLOR', (2, 3), (2, 3),
+                       colors.HexColor('#1e293b')))
 
     # Forward valuation row styling (rows index 6 and 7)
     t_style.extend([
@@ -177,7 +192,7 @@ def export_pdf_view(request, pk):
         spaceAfter=6
     )
 
-    # Sanitize commentary line-by-line before passing to ReportLab Paragraphs
+    # Sanitize commentary stream before parsing into ReportLab Paragraphs
     clean_commentary = sanitize_currency(analysis.ai_commentary)
     lines = clean_commentary.split('\n')
 
@@ -186,15 +201,17 @@ def export_pdf_view(request, pk):
         if not line:
             continue
         if line.startswith('###'):
-            story.append(Paragraph(line.replace('###', '').strip(), header_style))
+            story.append(Paragraph(line.replace(
+                '###', '').strip(), header_style))
         elif line.startswith('*'):
-            formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line).replace('*', '&bull;', 1)
+            formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>',
+                               line).replace('*', '&bull;', 1)
             story.append(Paragraph(formatted, body_style))
         else:
             formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
             story.append(Paragraph(formatted, body_style))
 
-    # 5. GENERATE AND RETURN
+    # 5. GENERATE AND RETURN PDF
     doc.build(story)
     buffer.seek(0)
 
