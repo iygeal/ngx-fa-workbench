@@ -76,7 +76,7 @@ def export_pdf_view(request, pk):
     flags = results['flags']
     is_bank = raw['is_bank']
 
-    # Helper function to sanitize Unicode Naira symbols to prevent ReportLab '■' missing-glyph glitches
+    # Helper function to sanitize Unicode Naira symbols to prevent ReportLab missing-glyph glitches
     def sanitize_currency(text):
         if not text:
             return ""
@@ -95,10 +95,18 @@ def export_pdf_view(request, pk):
     story = []
 
     # 2. HEADER SECTION
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Title'], fontSize=22, textColor=colors.black, spaceAfter=5)
-    story.append(Paragraph(f"{analysis.ticker} Fundamental Analysis", title_style))
-    story.append(Paragraph(f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
-    story.append(Spacer(1, 20))
+    title_style = ParagraphStyle(
+        'DocTitle', parent=styles['Title'], fontSize=20, textColor=colors.black, spaceAfter=4, alignment=0
+    )
+    section_title_style = ParagraphStyle(
+        'SectionTitle', parent=styles['Normal'], fontSize=14, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e293b'), spaceBefore=12, spaceAfter=8
+    )
+
+    story.append(
+        Paragraph(f"{analysis.ticker} Fundamental Analysis", title_style))
+    story.append(Paragraph(
+        f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
+    story.append(Spacer(1, 15))
 
     # 3. METRICS TABLE WITH BANK vs NON-BANK LOGIC
     def get_color(flag):
@@ -108,20 +116,29 @@ def export_pdf_view(request, pk):
     data = [['LAYER 1 METRIC', 'VALUE', 'STATUS']]
 
     if is_bank:
-        data.append(['ROE', f"{raw['roe']}%", "PASS" if flags['is_efficient'] else "FAIL"])
-        data.append(['Real ROE', f"{raw['real_roe']}%", "PASS" if flags['is_wealth_creator'] else "FAIL"])
-        data.append(['Cost-to-Income Ratio', f"{raw['cost_to_income']}%", "METRIC"])
+        data.append(['ROE', f"{raw['roe']}%",
+                    "PASS" if flags['is_efficient'] else "FAIL"])
+        data.append(['Real ROE', f"{raw['real_roe']}%",
+                    "PASS" if flags['is_wealth_creator'] else "FAIL"])
+        data.append(['Cost-to-Income Ratio',
+                    f"{raw['cost_to_income']}%", "METRIC"])
     else:
-        data.append(['ROIC', f"{raw['roic']}%", "PASS" if flags['is_efficient'] else "FAIL"])
-        data.append(['Real ROIC', f"{raw['real_roic']}%", "PASS" if flags['is_wealth_creator'] else "FAIL"])
-        data.append(['FCF Conversion', f"{raw['fcf_conv']}%", "PASS" if flags['is_cash_backed'] else "FAIL"])
+        data.append(['ROIC', f"{raw['roic']}%",
+                    "PASS" if flags['is_efficient'] else "FAIL"])
+        data.append(['Real ROIC', f"{raw['real_roic']}%",
+                    "PASS" if flags['is_wealth_creator'] else "FAIL"])
+        data.append(['FCF Conversion', f"{raw['fcf_conv']}%",
+                    "PASS" if flags['is_cash_backed'] else "FAIL"])
 
     data.append(['Dividend Yield', f"{raw['div_yield']}%", "N/A"])
-    data.append(['Payout Ratio', f"{raw['payout']}%", "HEALTHY" if flags['healthy_payout'] else "CAUTION"])
+    data.append(['Payout Ratio', f"{raw['payout']}%",
+                "HEALTHY" if flags['healthy_payout'] else "CAUTION"])
 
-    # Forward Value Projector Rows (Formatted with tight N prefix)
-    data.append([f"Forward EPS (Proj. {raw['period_analyzed']})", f"N{raw['forward_eps']}", "TRAJECTORY"])
-    data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x", "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
+    # Forward Value Projector Rows
+    data.append(
+        [f"Forward EPS (Proj. {raw['period_analyzed']})", f"N{raw['forward_eps']}", "TRAJECTORY"])
+    data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x",
+                "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
 
     t = Table(data, colWidths=[220, 90, 90])
 
@@ -131,7 +148,7 @@ def export_pdf_view(request, pk):
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         # Primary Efficiency Colors
@@ -141,9 +158,11 @@ def export_pdf_view(request, pk):
 
     # Sector-specific row styling
     if not is_bank:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), get_color(flags['is_cash_backed'])))
+        t_style.append(('TEXTCOLOR', (2, 3), (2, 3),
+                       get_color(flags['is_cash_backed'])))
     else:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), colors.HexColor('#1e293b')))
+        t_style.append(('TEXTCOLOR', (2, 3), (2, 3),
+                       colors.HexColor('#1e293b')))
 
     # Forward valuation row styling (rows index 6 and 7)
     t_style.extend([
@@ -153,11 +172,11 @@ def export_pdf_view(request, pk):
 
     t.setStyle(TableStyle(t_style))
     story.append(t)
-    story.append(Spacer(1, 25))
+    story.append(Spacer(1, 20))
 
     # 4. ANALYST COMMENTARY
-    story.append(Paragraph("Analyst Commentary", styles['Heading2']))
-    story.append(Spacer(1, 10))
+    story.append(Paragraph("Analyst Commentary", section_title_style))
+    story.append(Spacer(1, 6))
 
     header_style = ParagraphStyle(
         'CommentaryHeader',
@@ -187,12 +206,13 @@ def export_pdf_view(request, pk):
         if not line:
             continue
         if line.startswith('###'):
-            story.append(Paragraph(line.replace('###', '').strip(), header_style))
-        elif line.startswith('*'):
-            formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line).replace('*', '&bull;', 1)
-            story.append(Paragraph(formatted, body_style))
+            header_text = line.replace('###', '').strip()
+            story.append(Paragraph(header_text, header_style))
         else:
+            # Safely replace markdown bold syntax with ReportLab XML tags
             formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
+            if formatted.startswith('*'):
+                formatted = '&bull; ' + formatted[1:].strip()
             story.append(Paragraph(formatted, body_style))
 
     # 5. GENERATE AND RETURN PDF
