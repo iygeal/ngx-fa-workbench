@@ -229,7 +229,7 @@ def export_pdf_view(request, pk):
         spaceAfter=6
     )
 
-    # Sanitize commentary stream before parsing into ReportLab Paragraphs
+    # ANALYST COMMENTARY PARSING
     clean_commentary = clean_text_for_pdf(analysis.ai_commentary)
     lines = clean_commentary.split('\n')
 
@@ -237,17 +237,31 @@ def export_pdf_view(request, pk):
         line = line.strip()
         if not line:
             continue
+
         if line.startswith('###'):
+            # Handle Section Headers
             header_text = line.replace('###', '').strip()
-            # Replace inline markdown bold inside headers if present
-            header_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', header_text)
+            # Strip any stray asterisks in headers
+            header_text = re.sub(r'\*+', '', header_text)
             story.append(Paragraph(header_text, header_style))
         else:
-            # Convert markdown **bold** to ReportLab XML <b>bold</b>
-            formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
-            if formatted.startswith('*'):
-                formatted = '&bull; ' + formatted[1:].strip()
-            story.append(Paragraph(formatted, body_style))
+            is_bullet = False
+            # Check if line starts with a markdown bullet point
+            if line.startswith('*') or line.startswith('-') or line.startswith('•'):
+                is_bullet = True
+                # Remove leading bullet symbol and whitespace
+                line = re.sub(r'^[*•-]\s*', '', line)
+
+            # Fix mismatched bold syntax like *Text** or **Text* into clean **Text**
+            line = re.sub(r'\*+([^*]+)\*+', r'<b>\1</b>', line)
+
+            # Render line with bullet symbol or standard body formatting
+            if is_bullet:
+                formatted_line = f"&bull; {line}"
+            else:
+                formatted_line = line
+
+            story.append(Paragraph(formatted_line, body_style))
 
     # 5. GENERATE AND RETURN PDF RESPONSE
     doc.build(story)
