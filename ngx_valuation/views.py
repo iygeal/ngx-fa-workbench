@@ -87,20 +87,17 @@ def export_pdf_view(request, pk):
         if not text:
             return ""
 
-        # A. Replace Unicode Naira symbol with standard N prefix to avoid missing glyphs (■)
+        # 1. Map Currency Symbol
         t = str(text).replace('₦', 'N')
 
-        # B. Convert LaTeX math fractions \frac{A}{B} to plain text (A / B)
+        # 2. Clean LaTeX fractions & symbols
         t = re.sub(r'\$\s*\\frac\{([^}]+)\}\{([^}]+)\}\s*\$', r'(\1 / \2)', t)
         t = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1 / \2)', t)
-
-        # C. Replace TeX comparison operators and math delimiters
         t = t.replace(r'\le', '<=').replace(r'\ge', '>=')
         t = t.replace('$', '')
 
-        # D. Break inline concatenated bullet points onto fresh newlines
-        t = re.sub(r':\s*\*\s*', ':\n* ', t)
-        t = re.sub(r'(\.)\s*\*\s*', r'\1\n* ', t)
+        # 3. Ensure inline bullet points break cleanly onto new lines
+        t = re.sub(r'([.:;])\s*\*\s*', r'\1\n* ', t)
 
         return t
 
@@ -242,9 +239,11 @@ def export_pdf_view(request, pk):
             continue
         if line.startswith('###'):
             header_text = line.replace('###', '').strip()
+            # Replace inline markdown bold inside headers if present
+            header_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', header_text)
             story.append(Paragraph(header_text, header_style))
         else:
-            # Replace markdown bold syntax with ReportLab XML tags
+            # Convert markdown **bold** to ReportLab XML <b>bold</b>
             formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
             if formatted.startswith('*'):
                 formatted = '&bull; ' + formatted[1:].strip()
