@@ -224,7 +224,7 @@ class ValuationService:
             Focus your tone on whether the business is an operational 'Wealth Creator' or 'Wealth Destroyer' based on Real {'ROE' if is_bank else 'ROIC'}.
 
             STRICT FORMATTING RULES:
-            1. DO NOT use LaTeX, TeX, or mathematical syntax like $\frac{a}{b}$, $\le$, $\ge$, or $. Write simple plain text fractions like (₦74.60 / ₦6.00) and text signs like <= or >=.
+            1. DO NOT use LaTeX, TeX, or mathematical syntax like $\frac{{a}}{{b}}$, $\le$, $\ge$, or $. Write simple plain text fractions like (₦74.60 / ₦6.00) and text signs like <= or >=.
             2. Ensure every bullet point starts on a fresh new line with an asterisk (*). Do not concatenate bullet points on a single line.
             """
 

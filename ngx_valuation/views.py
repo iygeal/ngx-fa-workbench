@@ -18,15 +18,16 @@ from .services import ValuationService
 def home_view(request):
     """
     Landing page for the workbench.
-    Redirects directly to the Layer 1 Quick Scan.
+    Redirects directly to the Layer 1 Quick Scan form.
     """
     return redirect('quick_scan')
 
 
 def quick_scan_view(request):
     """
-    Handles the initial data entry for the Layer 1 (Efficiency) scan.
-    Calculates operational metrics and triggers Gemini AI commentary.
+    Handles data entry for the Layer 1 (Efficiency) scan.
+    Saves raw inputs, calculates operational metrics via ValuationService,
+    fetches Gemini AI commentary, and redirects to the results view.
     """
     if request.method == "POST":
         form = AnalysisForm(request.POST)
@@ -56,7 +57,8 @@ def quick_scan_view(request):
 
 def analysis_results_view(request, pk):
     """
-    Displays calculated metrics and formatted AI investment commentary.
+    Displays calculated metrics and formatted AI investment commentary
+    on the web results dashboard.
     """
     analysis = get_object_or_404(IntrinsicAnalysis, pk=pk)
     results = ValuationService.calculate_layer1_metrics(analysis)
@@ -68,6 +70,10 @@ def analysis_results_view(request, pk):
 
 
 def export_pdf_view(request, pk):
+    """
+    Generates and downloads a clean, publication-ready PDF summary report.
+    Includes sector-aware metrics tables and sanitized AI commentary stream.
+    """
     # 1. DATA RETRIEVAL
     analysis = get_object_or_404(IntrinsicAnalysis, pk=pk)
     results = ValuationService.calculate_layer1_metrics(analysis)
@@ -76,11 +82,27 @@ def export_pdf_view(request, pk):
     flags = results['flags']
     is_bank = raw['is_bank']
 
-    # Helper function to sanitize Unicode Naira symbols to prevent ReportLab missing-glyph glitches
-    def sanitize_currency(text):
+    # Text sanitizer to strip LaTeX formatting, map raw symbols, and structure bullets for ReportLab
+    def clean_text_for_pdf(text):
         if not text:
             return ""
-        return str(text).replace('₦', 'N')
+
+        # A. Replace Unicode Naira symbol with standard N prefix to avoid missing glyphs (■)
+        t = str(text).replace('₦', 'N')
+
+        # B. Convert LaTeX math fractions \frac{A}{B} to plain text (A / B)
+        t = re.sub(r'\$\s*\\frac\{([^}]+)\}\{([^}]+)\}\s*\$', r'(\1 / \2)', t)
+        t = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1 / \2)', t)
+
+        # C. Replace TeX comparison operators and math delimiters
+        t = t.replace(r'\le', '<=').replace(r'\ge', '>=')
+        t = t.replace('$', '')
+
+        # D. Break inline concatenated bullet points onto fresh newlines
+        t = re.sub(r':\s*\*\s*', ':\n* ', t)
+        t = re.sub(r'(\.)\s*\*\s*', r'\1\n* ', t)
+
+        return t
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -96,23 +118,36 @@ def export_pdf_view(request, pk):
 
     # 2. HEADER SECTION
     title_style = ParagraphStyle(
-        'DocTitle', parent=styles['Title'], fontSize=20, textColor=colors.black, spaceAfter=4, alignment=0
+        'DocTitle',
+        parent=styles['Title'],
+        fontSize=20,
+        textColor=colors.black,
+        spaceAfter=4,
+        alignment=0
     )
     section_title_style = ParagraphStyle(
-        'SectionTitle', parent=styles['Normal'], fontSize=14, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e293b'), spaceBefore=12, spaceAfter=8
+        'SectionTitle',
+        parent=styles['Normal'],
+        fontSize=14,
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor('#1e293b'),
+        spaceBefore=12,
+        spaceAfter=8
     )
 
     story.append(
         Paragraph(f"{analysis.ticker} Fundamental Analysis", title_style))
     story.append(Paragraph(
-        f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}", styles['Normal']))
+        f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}",
+        styles['Normal']
+    ))
     story.append(Spacer(1, 15))
 
     # 3. METRICS TABLE WITH BANK vs NON-BANK LOGIC
     def get_color(flag):
         return colors.darkgreen if flag else colors.maroon
 
-    # Build dynamic data rows based on sector
+    # Build dynamic data rows based on sector classification
     data = [['LAYER 1 METRIC', 'VALUE', 'STATUS']]
 
     if is_bank:
@@ -142,7 +177,7 @@ def export_pdf_view(request, pk):
 
     t = Table(data, colWidths=[220, 90, 90])
 
-    # Table styling configuration
+    # Table styling setup
     t_style = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -198,7 +233,7 @@ def export_pdf_view(request, pk):
     )
 
     # Sanitize commentary stream before parsing into ReportLab Paragraphs
-    clean_commentary = sanitize_currency(analysis.ai_commentary)
+    clean_commentary = clean_text_for_pdf(analysis.ai_commentary)
     lines = clean_commentary.split('\n')
 
     for line in lines:
@@ -209,13 +244,13 @@ def export_pdf_view(request, pk):
             header_text = line.replace('###', '').strip()
             story.append(Paragraph(header_text, header_style))
         else:
-            # Safely replace markdown bold syntax with ReportLab XML tags
+            # Replace markdown bold syntax with ReportLab XML tags
             formatted = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
             if formatted.startswith('*'):
                 formatted = '&bull; ' + formatted[1:].strip()
             story.append(Paragraph(formatted, body_style))
 
-    # 5. GENERATE AND RETURN PDF
+    # 5. GENERATE AND RETURN PDF RESPONSE
     doc.build(story)
     buffer.seek(0)
 
