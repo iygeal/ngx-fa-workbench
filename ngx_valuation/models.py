@@ -75,6 +75,24 @@ class IntrinsicAnalysis(models.Model):
         verbose_name="Total Dividend Paid (in 000s)"
     )
 
+    # --- LAYER 2: MOMENTUM & PRICE ACTION FIELDS ---
+    fifty_two_week_high = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, null=True, blank=True,
+        verbose_name="52-Week High (₦)"
+    )
+    fifty_two_week_low = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, null=True, blank=True,
+        verbose_name="52-Week Low (₦)"
+    )
+    sma_50 = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, null=True, blank=True,
+        verbose_name="50-Day SMA (₦)"
+    )
+    sma_200 = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, null=True, blank=True,
+        verbose_name="200-Day SMA (₦)"
+    )
+
     # --- Projection & Macro Context ---
     report_quarter = models.CharField(
         max_length=2,
