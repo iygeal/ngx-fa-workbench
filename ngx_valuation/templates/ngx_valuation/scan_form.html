@@ -106,6 +106,38 @@
             </div>
         </div>
 
+        <!-- Collapsible Row 6: Layer 2 Price Action & Market Momentum (Optional) -->
+        <details class="pt-6 border-t border-slate-800 group">
+            <summary class="flex justify-between items-center cursor-pointer select-none text-xs font-bold uppercase text-amber-400 hover:text-amber-300 transition-colors">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-amber-400 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                    Layer 2: Technical Momentum & Price Range Positioning (Optional)
+                </span>
+                <span class="text-[10px] text-slate-500 normal-case font-normal">Click to toggle fields</span>
+            </summary>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6 p-4 bg-slate-950/50 rounded-xl border border-slate-800/80">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">52-Week High (₦)</label>
+                    {{ form.fifty_two_week_high }}
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">52-Week Low (₦)</label>
+                    {{ form.fifty_two_week_low }}
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">50-Day Moving Avg (₦)</label>
+                    {{ form.sma_50 }}
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">200-Day Moving Avg (₦)</label>
+                    {{ form.sma_200 }}
+                </div>
+            </div>
+        </details>
+
         <div class="pt-6">
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-[1.01] shadow-lg">
                 Run Fundamental Analysis & Generate AI Memo
