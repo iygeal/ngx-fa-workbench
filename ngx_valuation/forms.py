@@ -27,6 +27,12 @@ class AnalysisForm(forms.ModelForm):
             'current_sp': 'Current Share Price (in Naira)',
             'current_inf': 'Current Inflation Rate (%)',
             'report_quarter': 'Financial Statement Period',
+
+            # --- LAYER 2: MOMENTUM LABELS ---
+            'fifty_two_week_high': '52-Week High Price (₦)',
+            'fifty_two_week_low': '52-Week Low Price (₦)',
+            'sma_50': '50-Day Moving Average / SMA 50 (₦)',
+            'sma_200': '200-Day Moving Average / SMA 200 (₦)',
         }
 
         # Number input widgets with consistent dark Tailwind styling
@@ -40,6 +46,13 @@ class AnalysisForm(forms.ModelForm):
                 'total_equity', 'total_debt', 'total_os', 'current_sp', 'total_div', 'current_inf'
             ]
         }
+
+        # Tailwind widgets for Price Action / Momentum fields
+        for field in ['fifty_two_week_high', 'fifty_two_week_low', 'sma_50', 'sma_200']:
+            widgets[field] = forms.NumberInput(attrs={
+                'class': 'w-full p-2 bg-slate-800 border border-slate-700 rounded text-white focus:ring-2 focus:ring-indigo-500 outline-none',
+                'placeholder': 'e.g. 35.50 (Optional)'
+            })
 
         # Text input widget for ticker
         widgets['ticker'] = forms.TextInput(attrs={
@@ -66,7 +79,12 @@ class AnalysisForm(forms.ModelForm):
             'capex_ppe',
             'total_debt',
             'finance_income',
-            'total_div'
+            'total_div',
+            # Layer 2 Optional Momentum Inputs
+            'fifty_two_week_high',
+            'fifty_two_week_low',
+            'sma_50',
+            'sma_200',
         ]
         for field in optional_fields:
             if field in self.fields:
