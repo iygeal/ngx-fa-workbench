@@ -25,8 +25,8 @@ def home_view(request):
 
 def quick_scan_view(request):
     """
-    Handles data entry for the Layer 1 (Efficiency) scan.
-    Saves raw inputs, calculates operational metrics via ValuationService,
+    Handles data entry for Layer 1 (Efficiency) & Layer 2 (Momentum) scan.
+    Saves raw inputs, calculates operational and momentum metrics via ValuationService,
     fetches Gemini AI commentary, and redirects to the results view.
     """
     if request.method == "POST":
@@ -51,7 +51,7 @@ def quick_scan_view(request):
 
     return render(request, 'ngx_valuation/scan_form.html', {
         'form': form,
-        'title': 'Layer 1: Quick Scan'
+        'title': 'Layer 1 & 2: Valuation Scan'
     })
 
 
@@ -72,7 +72,7 @@ def analysis_results_view(request, pk):
 def export_pdf_view(request, pk):
     """
     Generates and downloads a clean, publication-ready PDF summary report.
-    Includes sector-aware metrics tables and sanitized AI commentary stream.
+    Includes sector-aware metrics tables, Layer 2 momentum metrics, and sanitized AI commentary.
     """
     # 1. DATA RETRIEVAL
     analysis = get_object_or_404(IntrinsicAnalysis, pk=pk)
@@ -80,6 +80,7 @@ def export_pdf_view(request, pk):
 
     raw = results['raw']
     flags = results['flags']
+    mom = results.get('momentum', {})
     is_bank = raw['is_bank']
 
     # Text sanitizer to strip LaTeX formatting, map raw symbols, and structure bullets for ReportLab
@@ -133,7 +134,7 @@ def export_pdf_view(request, pk):
     )
 
     story.append(
-        Paragraph(f"{analysis.ticker} Fundamental Analysis", title_style))
+        Paragraph(f"{analysis.ticker} Fundamental & Momentum Analysis", title_style))
     story.append(Paragraph(
         f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}",
         styles['Normal']
@@ -145,7 +146,7 @@ def export_pdf_view(request, pk):
         return colors.darkgreen if flag else colors.maroon
 
     # Build dynamic data rows based on sector classification
-    data = [['LAYER 1 METRIC', 'VALUE', 'STATUS']]
+    data = [['METRIC (LAYER 1 & 2)', 'VALUE', 'STATUS / VERDICT']]
 
     if is_bank:
         data.append(['ROE', f"{raw['roe']}%",
@@ -172,9 +173,23 @@ def export_pdf_view(request, pk):
     data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x",
                 "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
 
-    t = Table(data, colWidths=[220, 90, 90])
+    # Layer 2 Technical Momentum Rows
+    if mom.get('has_52w_data'):
+        data.append(['52-Week Range Position', f"{mom['range_pos_pct']}% from Low", "POSITIONING"])
+    else:
+        data.append(['52-Week Range Position', "N/A", "OPTIONAL"])
 
-    # Table styling setup
+    if mom.get('has_sma_data'):
+        sma_signal = "BULLISH (Golden)" if mom.get('golden_cross') else ("ABOVE SMA 200" if mom.get('above_sma_200') else "BEARISH / BELOW")
+        data.append(['Moving Average Alignment', f"SMA50: N{mom['sma_50']} | SMA200: N{mom['sma_200']}", sma_signal])
+    else:
+        data.append(['Moving Average Alignment', "N/A", "OPTIONAL"])
+
+    data.append(['Value-Momentum Setup', mom.get('matrix_status', 'N/A'), "MATRIX STATUS"])
+
+    t = Table(data, colWidths=[220, 110, 110])
+
+    # Dynamic Table styling setup using relative indices
     t_style = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -182,7 +197,7 @@ def export_pdf_view(request, pk):
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         # Primary Efficiency Colors
         ('TEXTCOLOR', (2, 1), (2, 1), get_color(flags['is_efficient'])),
         ('TEXTCOLOR', (2, 2), (2, 2), get_color(flags['is_wealth_creator'])),
@@ -190,16 +205,19 @@ def export_pdf_view(request, pk):
 
     # Sector-specific row styling
     if not is_bank:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3),
-                       get_color(flags['is_cash_backed'])))
+        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), get_color(flags['is_cash_backed'])))
     else:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3),
-                       colors.HexColor('#1e293b')))
+        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), colors.HexColor('#1e293b')))
 
-    # Forward valuation row styling (rows index 6 and 7)
+    # Forward valuation and momentum row styling
+    pe_row_idx = 7
+    matrix_row_idx = len(data) - 1
+
     t_style.extend([
         ('FONTNAME', (0, 6), (-1, 7), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (2, 7), (2, 7), get_color(flags['is_undervalued_pe'])),
+        ('TEXTCOLOR', (2, pe_row_idx), (2, pe_row_idx), get_color(flags['is_undervalued_pe'])),
+        ('FONTNAME', (0, matrix_row_idx), (-1, matrix_row_idx), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, matrix_row_idx), (-1, matrix_row_idx), colors.HexColor('#f8fafc')),
     ])
 
     t.setStyle(TableStyle(t_style))
@@ -239,23 +257,17 @@ def export_pdf_view(request, pk):
             continue
 
         if line.startswith('###'):
-            # Handle Section Headers
             header_text = line.replace('###', '').strip()
-            # Strip any stray asterisks in headers
             header_text = re.sub(r'\*+', '', header_text)
             story.append(Paragraph(header_text, header_style))
         else:
             is_bullet = False
-            # Check if line starts with a markdown bullet point
             if line.startswith('*') or line.startswith('-') or line.startswith('•'):
                 is_bullet = True
-                # Remove leading bullet symbol and whitespace
                 line = re.sub(r'^[*•-]\s*', '', line)
 
-            # Fix mismatched bold syntax like *Text** or **Text* into clean **Text**
             line = re.sub(r'\*+([^*]+)\*+', r'<b>\1</b>', line)
 
-            # Render line with bullet symbol or standard body formatting
             if is_bullet:
                 formatted_line = f"&bull; {line}"
             else:
