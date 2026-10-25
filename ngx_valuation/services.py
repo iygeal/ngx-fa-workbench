@@ -35,6 +35,86 @@ class ValuationService:
             return Decimal('0')
 
     @staticmethod
+    def calculate_momentum_metrics(analysis_obj, is_wealth_creator=False, is_undervalued=False):
+        """
+        Layer 2: Price Action, Technical Momentum & Value-Momentum Matrix Engine.
+        Handles optional inputs gracefully (defaults to 0 or None if omitted).
+        """
+        d = analysis_obj
+        current_sp = Decimal(str(d.current_sp or '0'))
+        hi_52 = ValuationService._parse_fin(d.fifty_two_week_high)
+        lo_52 = ValuationService._parse_fin(d.fifty_two_week_low)
+        sma_50 = ValuationService._parse_fin(d.sma_50)
+        sma_200 = ValuationService._parse_fin(d.sma_200)
+
+        # 1. 52-Week Range Positioning (% from 0% [At Low] to 100% [At High])
+        range_span = hi_52 - lo_52
+        if hi_52 > 0 and lo_52 > 0 and range_span > 0 and current_sp > 0:
+            range_pos_pct = ((current_sp - lo_52) /
+                             range_span) * Decimal('100')
+            dist_from_high = ((hi_52 - current_sp) / hi_52) * Decimal('100')
+            dist_from_low = ((current_sp - lo_52) / lo_52) * Decimal('100')
+            has_52w_data = True
+        else:
+            range_pos_pct = Decimal('0')
+            dist_from_high = Decimal('0')
+            dist_from_low = Decimal('0')
+            has_52w_data = False
+
+        # 2. Moving Average Trend Signals
+        has_sma_data = (sma_50 > 0 and sma_200 > 0 and current_sp > 0)
+        above_sma_50 = current_sp > sma_50 if sma_50 > 0 else False
+        above_sma_200 = current_sp > sma_200 if sma_200 > 0 else False
+        golden_cross = sma_50 > sma_200 if (
+            sma_50 > 0 and sma_200 > 0) else False
+
+        # 3. Value-Momentum Matrix Classification
+        if is_wealth_creator and is_undervalued:
+            if has_52w_data and range_pos_pct <= Decimal('30'):
+                matrix_status = "Deep Value Rebound Candidate"
+                matrix_badge = "emerald"
+                matrix_desc = "High operational quality trading near 52-week lows. Prime asymmetric entry zone."
+            elif has_sma_data and above_sma_50 and golden_cross:
+                matrix_status = "Quality Compounder in Uptrend"
+                matrix_badge = "indigo"
+                matrix_desc = "Fundamentals and technical momentum aligned in bullish trend."
+            else:
+                matrix_status = "Undervalued Quality Asset"
+                matrix_badge = "emerald"
+                matrix_desc = "Strong fundamentals available below fair forward valuation threshold."
+        elif not is_wealth_creator:
+            if has_52w_data and range_pos_pct <= Decimal('20'):
+                matrix_status = "Value Trap / Falling Knife Warning"
+                matrix_badge = "rose"
+                matrix_desc = "Low/negative real return on capital. Low price reflects operational erosion."
+            else:
+                matrix_status = "Sub-Par Operational Performer"
+                matrix_badge = "amber"
+                matrix_desc = "Fails real return hurdle rate. Exercise caution despite price action."
+        else:
+            matrix_status = "Fairly Valued / Neutral Momentum"
+            matrix_badge = "slate"
+            matrix_desc = "Operational creator trading within expected market valuation range."
+
+        return {
+            "has_52w_data": has_52w_data,
+            "has_sma_data": has_sma_data,
+            "hi_52": hi_52.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "lo_52": lo_52.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "sma_50": sma_50.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "sma_200": sma_200.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "range_pos_pct": range_pos_pct.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "dist_from_high": dist_from_high.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "dist_from_low": dist_from_low.quantize(Decimal('0.01'), ROUND_HALF_UP),
+            "above_sma_50": above_sma_50,
+            "above_sma_200": above_sma_200,
+            "golden_cross": golden_cross,
+            "matrix_status": matrix_status,
+            "matrix_badge": matrix_badge,
+            "matrix_desc": matrix_desc
+        }
+
+    @staticmethod
     def calculate_layer1_metrics(analysis_obj):
         d = analysis_obj
 
@@ -58,16 +138,13 @@ class ValuationService:
 
         if is_bank:
             # --- BANKING METRICS ---
-            # ROE = PAT / Total Equity
             roe = pat / total_equity if total_equity > 0 else Decimal('0')
             real_roe = roe - inflation_rate
 
-            # Cost to Income Ratio = Operating Expenses (stored in finance_cost) / Operating Profit (Operating Revenue)
             opex = ValuationService._parse_fin(d.finance_cost)
             cost_to_income = opex / \
                 op_profit if op_profit > 0 else Decimal('0')
 
-            # Non-applicable metrics for Banks defaulted to 0
             nopat = Decimal('0')
             roic = Decimal('0')
             real_roic = Decimal('0')
@@ -121,6 +198,18 @@ class ValuationService:
         forward_pe = current_sp / \
             forward_eps if forward_eps > 0 else Decimal('0')
 
+        # Evaluate Flags for Momentum Matrix
+        is_wealth_creator = (real_roe > 0) if is_bank else (real_roic > 0)
+        is_undervalued = Decimal('0') < forward_pe <= (
+            Decimal('5.00') if is_bank else Decimal('10.00'))
+
+        # Calculate Layer 2 Technical Momentum & Price Action Metrics
+        momentum_data = ValuationService.calculate_momentum_metrics(
+            analysis_obj,
+            is_wealth_creator=is_wealth_creator,
+            is_undervalued=is_undervalued
+        )
+
         return {
             "raw": {
                 "sector": sector,
@@ -142,12 +231,13 @@ class ValuationService:
                 "forward_pe": forward_pe.quantize(Decimal('0.02'), ROUND_HALF_UP),
                 "period_analyzed": quarter,
             },
+            "momentum": momentum_data,
             "flags": {
                 "is_efficient": (roe >= Decimal('0.18')) if is_bank else (roic >= Decimal('0.20')),
                 "is_cash_backed": True if is_bank else (fcf_conversion >= Decimal('0.70')),
-                "is_wealth_creator": (real_roe > 0) if is_bank else (real_roic > 0),
+                "is_wealth_creator": is_wealth_creator,
                 "healthy_payout": Decimal('0.30') <= payout_ratio <= Decimal('0.70'),
-                "is_undervalued_pe": Decimal('0') < forward_pe <= (Decimal('5.00') if is_bank else Decimal('10.00'))
+                "is_undervalued_pe": is_undervalued
             }
         }
 
@@ -165,6 +255,7 @@ class ValuationService:
             model = genai.GenerativeModel(model_name='gemini-flash-latest')
 
             raw = metrics['raw']
+            mom = metrics.get('momentum', {})
             is_bank = raw['is_bank']
 
             # Dynamic prompt tailored to entity classification
@@ -190,6 +281,15 @@ class ValuationService:
             """
                 rule_benchmark = "For non-banking stocks, a Forward P/E at or below 10x represents an asymmetric value entry point."
 
+            momentum_prompt = f"""
+            LAYER 2 TECHNICAL MOMENTUM & PRICE POSITIONING:
+            - 52-Week Range: ₦{mom.get('lo_52', 0)} - ₦{mom.get('hi_52', 0)} (Position in Range: {mom.get('range_pos_pct', 0)}%)
+            - Distance from 52W High: {mom.get('dist_from_high', 0)}% down
+            - Moving Averages: SMA 50 = ₦{mom.get('sma_50', 0)}, SMA 200 = ₦{mom.get('sma_200', 0)}
+            - Moving Average Signals: Above SMA 50 = {mom.get('above_sma_50')}, Above SMA 200 = {mom.get('above_sma_200')}, Golden Cross = {mom.get('golden_cross')}
+            - Value-Momentum Matrix Classification: {mom.get('matrix_status', 'N/A')} ({mom.get('matrix_desc', '')})
+            """
+
             prompt = f"""
             Act as a senior equity analyst specializing in the Nigerian Stock Exchange (NGX).
             Analyze {ticker} ({'Commercial Bank' if is_bank else 'Non-Banking / Industrial'}) using these operational metrics, market data, and forward projections:
@@ -206,19 +306,22 @@ class ValuationService:
             - Projected Full-Year Forward EPS: ₦{raw['forward_eps']}
             - Calculated Forward P/E Ratio: {raw['forward_pe']}x
 
-            THEORETICAL FRAMEWORK TO APPLY (Forward Valuation Projector):
-            "This projector states that equity markets fixate on past historical data, often missing massive inflection points in interim results. Forward valuation projects the true value of a stock based on future cash flows and annualized forward earnings. {rule_benchmark}"
+            {momentum_prompt}
+
+            THEORETICAL FRAMEWORK TO APPLY (Forward Valuation & Value-Momentum Projector):
+            "This projector states that equity markets fixate on past historical data, often missing massive inflection points in interim results. Forward valuation projects the true value of a stock based on future cash flows and annualized forward earnings. {rule_benchmark} Layer 2 Momentum evaluates whether price action presents a deep value entry opportunity or a falling knife."
 
             STRICT INSTRUCTIONS FOR THE ANALYSIS:
             1. Use Headline Inflation of {raw['inflation_used']}% for your macro assessment.
             2. Dividend tracking metrics must be ignored if the period analyzed is Q1 or Q3.
             3. Critically evaluate current price (₦{raw['current_sp']}) against Projected Forward EPS (₦{raw['forward_eps']}) using The Forward Projector Rule.
-            {"4. Assess Cost-to-Income and ROE stability for banking performance." if is_bank else "4. Assess ROIC and Free Cash Flow conversion quality."}
+            4. Assess the Layer 2 Value-Momentum Matrix classification (**{mom.get('matrix_status')}**) to guide timing and entry strategy.
+            {"5. Assess Cost-to-Income and ROE stability for banking performance." if is_bank else "5. Assess ROIC and Free Cash Flow conversion quality."}
 
             Format your output exactly with these 4 structural markdown headers:
             ### 1. Efficiency Check
             ### 2. Cash & Dividend Safety
-            ### 3. Valuation & Trajectory Verdict (Apply Forward Projector Rule here)
+            ### 3. Valuation & Trajectory Verdict (Apply Forward Projector & Momentum Rule here)
             ### 4. Risk & Macro Verdict
 
             Focus your tone on whether the business is an operational 'Wealth Creator' or 'Wealth Destroyer' based on Real {'ROE' if is_bank else 'ROIC'}.
