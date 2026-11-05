@@ -74,7 +74,6 @@ def export_pdf_view(request, pk):
     Generates and downloads a clean, publication-ready PDF summary report.
     Includes sector-aware metrics tables, Layer 2 momentum metrics, and sanitized AI commentary.
     """
-    # 1. DATA RETRIEVAL
     analysis = get_object_or_404(IntrinsicAnalysis, pk=pk)
     results = ValuationService.calculate_layer1_metrics(analysis)
 
@@ -83,202 +82,162 @@ def export_pdf_view(request, pk):
     mom = results.get('momentum', {})
     is_bank = raw['is_bank']
 
-    # Text sanitizer to strip LaTeX formatting, map raw symbols, and structure bullets for ReportLab
     def clean_text_for_pdf(text):
         if not text:
             return ""
-
-        # 1. Map Currency Symbol
         t = str(text).replace('₦', 'N')
-
-        # 2. Clean LaTeX fractions & symbols
         t = re.sub(r'\$\s*\\frac\{([^}]+)\}\{([^}]+)\}\s*\$', r'(\1 / \2)', t)
         t = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1 / \2)', t)
         t = t.replace(r'\le', '<=').replace(r'\ge', '>=')
         t = t.replace('$', '')
-
-        # 3. Ensure inline bullet points break cleanly onto new lines
         t = re.sub(r'([.:;])\s*\*\s*', r'\1\n* ', t)
-
         return t
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=50,
-        bottomMargin=50
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
     )
     styles = getSampleStyleSheet()
     story = []
 
-    # 2. HEADER SECTION
     title_style = ParagraphStyle(
         'DocTitle',
         parent=styles['Title'],
-        fontSize=20,
-        textColor=colors.black,
+        fontSize=18,
+        textColor=colors.HexColor('#0f172a'),
         spaceAfter=4,
         alignment=0
     )
-    section_title_style = ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Normal'],
-        fontSize=14,
-        fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#1e293b'),
-        spaceBefore=12,
-        spaceAfter=8
-    )
 
-    story.append(
-        Paragraph(f"{analysis.ticker} Fundamental & Momentum Analysis", title_style))
+    story.append(Paragraph(f"{analysis.ticker} Fundamental & Momentum Analysis", title_style))
     story.append(Paragraph(
         f"Sector: {'Commercial Bank' if is_bank else 'Non-Bank / Industrial'} | Analysis Date: {analysis.analysis_date.strftime('%B %d, %Y')}",
         styles['Normal']
     ))
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 12))
 
-    # 3. METRICS TABLE WITH BANK vs NON-BANK LOGIC
-    def get_color(flag):
-        return colors.darkgreen if flag else colors.maroon
+    # Cell paragraph styles to guarantee text wrapping and prevent overlap
+    th_style = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=9, textColor=colors.whitesmoke, alignment=1)
+    td_label = ParagraphStyle('TDLabel', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#1e293b'), alignment=0)
+    td_val = ParagraphStyle('TDVal', fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#334155'), alignment=1)
+    td_status = ParagraphStyle('TDStatus', fontName='Helvetica-Bold', fontSize=9, alignment=1)
 
-    # Build dynamic data rows based on sector classification
-    data = [['METRIC (LAYER 1 & 2)', 'VALUE', 'STATUS / VERDICT']]
+    def get_color_hex(flag):
+        return '#059669' if flag else '#dc2626'
 
+    data = [[
+        Paragraph("METRIC (LAYER 1 & 2)", th_style),
+        Paragraph("VALUE", th_style),
+        Paragraph("STATUS / VERDICT", th_style)
+    ]]
+
+    rows_to_build = []
     if is_bank:
-        data.append(['ROE', f"{raw['roe']}%",
-                    "PASS" if flags['is_efficient'] else "FAIL"])
-        data.append(['Real ROE', f"{raw['real_roe']}%",
-                    "PASS" if flags['is_wealth_creator'] else "FAIL"])
-        data.append(['Cost-to-Income Ratio',
-                    f"{raw['cost_to_income']}%", "METRIC"])
+        rows_to_build.append(('ROE', f"{raw['roe']}%", flags['is_efficient'], "PASS" if flags['is_efficient'] else "WATCH"))
+        rows_to_build.append(('Real ROE', f"{raw['real_roe']}%", flags['is_wealth_creator'], "PASS" if flags['is_wealth_creator'] else "FAIL"))
+        rows_to_build.append(('Cost-to-Income Ratio', f"{raw['cost_to_income']}%", True, "METRIC"))
     else:
-        data.append(['ROIC', f"{raw['roic']}%",
-                    "PASS" if flags['is_efficient'] else "FAIL"])
-        data.append(['Real ROIC', f"{raw['real_roic']}%",
-                    "PASS" if flags['is_wealth_creator'] else "FAIL"])
-        data.append(['FCF Conversion', f"{raw['fcf_conv']}%",
-                    "PASS" if flags['is_cash_backed'] else "FAIL"])
+        rows_to_build.append(('ROIC', f"{raw['roic']}%", flags['is_efficient'], "STRONG" if flags['is_efficient'] else "MODERATE"))
+        rows_to_build.append(('Real ROIC', f"{raw['real_roic']}%", flags['is_wealth_creator'], "PASS" if flags['is_wealth_creator'] else "FAIL"))
+        rows_to_build.append(('FCF Conversion', f"{raw['fcf_conv']}%", flags['is_cash_backed'], "PASS" if flags['is_cash_backed'] else "CAUTION"))
 
-    data.append(['Dividend Yield', f"{raw['div_yield']}%", "N/A"])
-    data.append(['Payout Ratio', f"{raw['payout']}%",
-                "HEALTHY" if flags['healthy_payout'] else "CAUTION"])
+    rows_to_build.append(('Dividend Yield', f"{raw['div_yield']}%", True, "N/A"))
+    rows_to_build.append(('Payout Ratio', f"{raw['payout']}%", flags['healthy_payout'], "HEALTHY" if flags['healthy_payout'] else "CAUTION"))
+    rows_to_build.append((f"Forward EPS (Proj. {raw['period_analyzed']})", f"N{raw['forward_eps']}", True, "TRAJECTORY"))
+    rows_to_build.append(('Forward P/E Ratio', f"{raw['forward_pe']}x", flags['is_undervalued_pe'], "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"))
 
-    # Forward Value Projector Rows
-    data.append(
-        [f"Forward EPS (Proj. {raw['period_analyzed']})", f"N{raw['forward_eps']}", "TRAJECTORY"])
-    data.append(['Forward P/E Ratio', f"{raw['forward_pe']}x",
-                "UNDERVALUED" if flags['is_undervalued_pe'] else "FAIR / PREMIUM"])
-
-    # Layer 2 Technical Momentum Rows
     if mom.get('has_52w_data'):
-        data.append(['52-Week Range Position', f"{mom['range_pos_pct']}% from Low", "POSITIONING"])
+        rows_to_build.append(('52-Week Range Position', f"{mom['range_pos_pct']}% from Low", True, "POSITIONING"))
     else:
-        data.append(['52-Week Range Position', "N/A", "OPTIONAL"])
+        rows_to_build.append(('52-Week Range Position', "N/A", True, "OPTIONAL"))
 
     if mom.get('has_sma_data'):
-        sma_signal = "BULLISH (Golden)" if mom.get('golden_cross') else ("ABOVE SMA 200" if mom.get('above_sma_200') else "BEARISH / BELOW")
-        data.append(['Moving Average Alignment', f"SMA50: N{mom['sma_50']} | SMA200: N{mom['sma_200']}", sma_signal])
+        sma_sig = "BULLISH" if mom.get('golden_cross') else ("ABOVE SMA 200" if mom.get('above_sma_200') else "BEARISH")
+        rows_to_build.append(('Moving Averages', f"SMA50: N{mom['sma_50']} | SMA200: N{mom['sma_200']}", True, sma_sig))
     else:
-        data.append(['Moving Average Alignment', "N/A", "OPTIONAL"])
+        rows_to_build.append(('Moving Averages', "N/A", True, "OPTIONAL"))
 
-    data.append(['Value-Momentum Setup', mom.get('matrix_status', 'N/A'), "MATRIX STATUS"])
+    rows_to_build.append(('Value-Momentum Setup', mom.get('matrix_status', 'N/A'), True, "SETUP"))
 
-    t = Table(data, colWidths=[220, 110, 110])
-
-    # Dynamic Table styling setup using relative indices
-    t_style = [
+    t_style_commands = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        # Primary Efficiency Colors
-        ('TEXTCOLOR', (2, 1), (2, 1), get_color(flags['is_efficient'])),
-        ('TEXTCOLOR', (2, 2), (2, 2), get_color(flags['is_wealth_creator'])),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 0), (-1, 0), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
     ]
 
-    # Sector-specific row styling
-    if not is_bank:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), get_color(flags['is_cash_backed'])))
-    else:
-        t_style.append(('TEXTCOLOR', (2, 3), (2, 3), colors.HexColor('#1e293b')))
+    for idx, (label, val, flag_ok, status_text) in enumerate(rows_to_build, start=1):
+        color_hex = get_color_hex(flag_ok) if status_text in ["PASS", "FAIL", "STRONG"] else "#1e293b"
+        status_style = ParagraphStyle(f'Status{idx}', parent=td_status, textColor=colors.HexColor(color_hex))
 
-    # Forward valuation and momentum row styling
-    pe_row_idx = 7
-    matrix_row_idx = len(data) - 1
+        data.append([
+            Paragraph(label, td_label),
+            Paragraph(str(val), td_val),
+            Paragraph(status_text, status_style)
+        ])
 
-    t_style.extend([
-        ('FONTNAME', (0, 6), (-1, 7), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (2, pe_row_idx), (2, pe_row_idx), get_color(flags['is_undervalued_pe'])),
-        ('FONTNAME', (0, matrix_row_idx), (-1, matrix_row_idx), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, matrix_row_idx), (-1, matrix_row_idx), colors.HexColor('#f8fafc')),
-    ])
-
-    t.setStyle(TableStyle(t_style))
+    t = Table(data, colWidths=[180, 202, 150])
+    t.setStyle(TableStyle(t_style_commands))
     story.append(t)
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 15))
 
-    # 4. ANALYST COMMENTARY
+    section_title_style = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor('#1e293b'),
+        spaceBefore=10,
+        spaceAfter=6
+    )
     story.append(Paragraph("Analyst Commentary", section_title_style))
-    story.append(Spacer(1, 6))
 
     header_style = ParagraphStyle(
         'CommentaryHeader',
         parent=styles['Normal'],
-        fontSize=11,
+        fontSize=10,
         textColor=colors.HexColor('#4f46e5'),
         fontName='Helvetica-Bold',
-        spaceBefore=10,
-        spaceAfter=4
+        spaceBefore=8,
+        spaceAfter=3
     )
 
     body_style = ParagraphStyle(
         'CommentaryBody',
         parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        leftIndent=10,
-        spaceAfter=6
+        fontSize=9,
+        leading=13,
+        leftIndent=8,
+        spaceAfter=4
     )
 
-    # ANALYST COMMENTARY PARSING
     clean_commentary = clean_text_for_pdf(analysis.ai_commentary)
-    lines = clean_commentary.split('\n')
-
-    for line in lines:
+    for line in clean_commentary.split('\n'):
         line = line.strip()
         if not line:
             continue
-
         if line.startswith('###'):
-            header_text = line.replace('###', '').strip()
-            header_text = re.sub(r'\*+', '', header_text)
+            header_text = re.sub(r'\*+', '', line.replace('###', '').strip())
             story.append(Paragraph(header_text, header_style))
         else:
             is_bullet = False
             if line.startswith('*') or line.startswith('-') or line.startswith('•'):
                 is_bullet = True
                 line = re.sub(r'^[*•-]\s*', '', line)
-
             line = re.sub(r'\*+([^*]+)\*+', r'<b>\1</b>', line)
-
-            if is_bullet:
-                formatted_line = f"&bull; {line}"
-            else:
-                formatted_line = line
-
+            formatted_line = f"&bull; {line}" if is_bullet else line
             story.append(Paragraph(formatted_line, body_style))
 
-    # 5. GENERATE AND RETURN PDF RESPONSE
     doc.build(story)
     buffer.seek(0)
-
     filename = f"{slugify(analysis.ticker)}_Analysis_{analysis.analysis_date.strftime('%Y-%m-%d')}.pdf"
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="{filename}"'
