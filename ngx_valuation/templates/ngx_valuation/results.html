@@ -61,7 +61,7 @@
         <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
             {% if results.raw.is_bank %}
                 <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROE</p>
-                <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-amber-400{% endif %}">
                     {{ results.raw.roe }}%
                 </p>
                 <p class="text-xs mt-2 {% if results.flags.is_wealth_creator %}text-emerald-500{% else %}text-rose-400{% endif %}">
@@ -69,7 +69,7 @@
                 </p>
             {% else %}
                 <p class="text-slate-400 text-sm font-medium uppercase mb-1">ROIC</p>
-                <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-rose-500{% endif %}">
+                <p class="text-3xl font-bold {% if results.flags.is_efficient %}text-emerald-400{% else %}text-amber-400{% endif %}">
                     {{ results.raw.roic }}%
                 </p>
                 <p class="text-xs mt-2 {% if results.flags.is_wealth_creator %}text-emerald-500{% else %}text-rose-400{% endif %}">
@@ -186,6 +186,176 @@
     </div>
     {% endif %}
 
+    <!-- MASTER FINANCIAL SNAPSHOT & AUDIT TABLE (ALL INPUTS & DERIVED FIGURES) -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden mb-8">
+        <div class="bg-slate-800/50 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+            <div>
+                <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                    <span>📊</span> Master Financial Snapshot & Audit Table
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Complete side-by-side audit of manual inputs and calculated Layer 1 & 2 outputs.</p>
+            </div>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded border border-emerald-500/30 uppercase">Audit Trail</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="bg-slate-950/80 text-xs font-bold uppercase text-slate-400 border-b border-slate-800">
+                        <th class="py-3.5 px-6">Line Item / Analytical Metric</th>
+                        <th class="py-3.5 px-6 text-right">Value / Figure</th>
+                        <th class="py-3.5 px-6 text-center">Classification / Verdict</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-slate-300 text-xs md:text-sm">
+                    <!-- SECTION 1: MARKET & MACRO INPUTS -->
+                    <tr class="bg-slate-950/40 text-indigo-300 font-bold text-[11px] uppercase tracking-wider">
+                        <td colspan="3" class="py-2.5 px-6">1. Macro & Market Inputs</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Reporting Period & Headline Inflation</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">{{ analysis.report_quarter }} | Inflation: {{ analysis.current_inf }}%</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Macro Input</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Current Share Price & Shares Outstanding</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">₦{{ results.raw.current_sp }} | {{ analysis.total_os|floatformat:0|intcomma }} units</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Market Input</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Total Dividend Paid (000s)</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">₦{{ analysis.total_div|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Distribution Input</span></td>
+                    </tr>
+
+                    <!-- SECTION 2: FINANCIAL STATEMENT INPUTS -->
+                    <tr class="bg-slate-950/40 text-indigo-300 font-bold text-[11px] uppercase tracking-wider">
+                        <td colspan="3" class="py-2.5 px-6">2. Financial Statement Inputs (in 000s)</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">{% if results.raw.is_bank %}Operating Revenue / Profit{% else %}Operating Profit (EBIT){% endif %}</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">₦{{ analysis.operating_profit|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Income Stmt</span></td>
+                    </tr>
+                    {% if not results.raw.is_bank %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Finance Income & One-Off Gains (-)</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">₦{{ analysis.finance_income|floatformat:0|intcomma }} | ₦{{ analysis.one_off_gains|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Adjustments</span></td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Tax Expenses & Profit After Tax (PAT)</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">Tax: ₦{{ analysis.tax_expenses|floatformat:0|intcomma }} | PAT: ₦{{ analysis.profit_after_tax|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Bottom Line</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">{% if results.raw.is_bank %}Operating Expenses (Opex){% else %}Finance Cost (Interest){% endif %}</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">₦{{ analysis.finance_cost|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Cost Input</span></td>
+                    </tr>
+                    {% if not results.raw.is_bank %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Net Operating Cash Flow & Capex (PPE)</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">OCF: ₦{{ analysis.net_operating_cash_flow|floatformat:0|intcomma }} | Capex: ₦{{ analysis.capex_ppe|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Cash Flow Stmt</span></td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-400">Total Equity {% if not results.raw.is_bank %}& Total Debt{% endif %}</td>
+                        <td class="py-3 px-6 text-right font-medium text-white">
+                            Equity: ₦{{ analysis.total_equity|floatformat:0|intcomma }}{% if not results.raw.is_bank %} | Debt: ₦{{ analysis.total_debt|floatformat:0|intcomma }}{% endif %}
+                        </td>
+                        <td class="py-3 px-6 text-center"><span class="text-slate-500 text-xs uppercase font-semibold">Balance Sheet</span></td>
+                    </tr>
+
+                    <!-- SECTION 3: DERIVED LAYER 1 & 2 VALUATION OUTPUTS -->
+                    <tr class="bg-slate-950/40 text-emerald-400 font-bold text-[11px] uppercase tracking-wider">
+                        <td colspan="3" class="py-2.5 px-6">3. Calculated Layer 1 & Layer 2 Outputs</td>
+                    </tr>
+                    {% if results.raw.is_bank %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">Return on Equity (ROE) & Real ROE</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">{{ results.raw.roe }}% (Real: {{ results.raw.real_roe }}%)</td>
+                        <td class="py-3 px-6 text-center">
+                            {% if results.flags.is_wealth_creator %}
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded text-xs border border-emerald-500/30">WEALTH CREATOR</span>
+                            {% else %}
+                                <span class="bg-rose-500/20 text-rose-400 font-bold px-2.5 py-0.5 rounded text-xs border border-rose-500/30">BELOW INFLATION</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">Cost-to-Income Ratio</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">{{ results.raw.cost_to_income }}%</td>
+                        <td class="py-3 px-6 text-center"><span class="text-indigo-400 text-xs font-bold uppercase">EFFICIENCY</span></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">NOPAT & Free Cash Flow (FCF) (000s)</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">NOPAT: ₦{{ results.raw.nopat|floatformat:0|intcomma }} | FCF: ₦{{ results.raw.fcf|floatformat:0|intcomma }}</td>
+                        <td class="py-3 px-6 text-center">
+                            {% if results.flags.is_cash_backed %}
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded text-xs border border-emerald-500/30">CASH BACKED ({{ results.raw.fcf_conv }}%)</span>
+                            {% else %}
+                                <span class="bg-amber-500/20 text-amber-400 font-bold px-2.5 py-0.5 rounded text-xs border border-amber-500/30">LOW CONVERSION ({{ results.raw.fcf_conv }}%)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">Nominal ROIC & Real ROIC</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">{{ results.raw.roic }}% (Real: {{ results.raw.real_roic }}%)</td>
+                        <td class="py-3 px-6 text-center">
+                            {% if results.flags.is_wealth_creator %}
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded text-xs border border-emerald-500/30">WEALTH CREATOR</span>
+                            {% else %}
+                                <span class="bg-rose-500/20 text-rose-400 font-bold px-2.5 py-0.5 rounded text-xs border border-rose-500/30">BELOW INFLATION</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">Dividend Yield & Payout Ratio</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">{{ results.raw.div_yield }}% | Payout: {{ results.raw.payout }}%</td>
+                        <td class="py-3 px-6 text-center">
+                            {% if results.flags.healthy_payout %}
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded text-xs border border-emerald-500/30">HEALTHY PAYOUT</span>
+                            {% else %}
+                                <span class="text-slate-400 text-xs font-semibold uppercase">INTERIM / LOW PAYOUT</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">Interim EPS & Projected Forward EPS ({{ results.raw.period_analyzed }})</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">Interim: ₦{{ results.raw.interim_eps }} | Forward FY: ₦{{ results.raw.forward_eps }}</td>
+                        <td class="py-3 px-6 text-center"><span class="text-indigo-400 text-xs font-bold uppercase">TRAJECTORY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">Calculated Forward P/E Ratio</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">{{ results.raw.forward_pe }}x</td>
+                        <td class="py-3 px-6 text-center">
+                            {% if results.flags.is_undervalued_pe %}
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded text-xs border border-emerald-500/30">UNDERVALUED</span>
+                            {% else %}
+                                <span class="bg-amber-500/20 text-amber-400 font-bold px-2.5 py-0.5 rounded text-xs border border-amber-500/30">FAIR / PREMIUM</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-6 text-slate-300 font-medium">52-Week Range & Moving Averages (50D / 200D)</td>
+                        <td class="py-3 px-6 text-right font-bold text-white">
+                            {% if results.momentum.has_52w_data %}{{ results.momentum.range_pos_pct }}% Range{% else %}52W: N/A{% endif %} |
+                            {% if results.momentum.has_sma_data %}₦{{ results.momentum.sma_50 }} / ₦{{ results.momentum.sma_200 }}{% else %}SMA: N/A{% endif %}
+                        </td>
+                        <td class="py-3 px-6 text-center">
+                            <span class="bg-indigo-500/20 text-indigo-400 font-bold px-2.5 py-0.5 rounded text-xs border border-indigo-500/30">{{ results.momentum.matrix_status|default:"NEUTRAL" }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- AI Analyst Commentary Panel -->
     <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
         <div class="bg-slate-800/50 px-6 py-3 border-b border-slate-800 flex justify-between items-center">
@@ -215,12 +385,21 @@
         color: #818cf8 !important; /* Indigo-400 */
     }
     @media print {
-        .bg-slate-950 { background-color: white !important; color: black !important; }
-        .bg-slate-900 { border: 1px solid #e2e8f0 !important; background-color: #f8fafc !important; color: black !important; }
+        body, .bg-slate-950 { background-color: white !important; color: #0f172a !important; }
+        .bg-slate-900, .bg-slate-800\/50, .bg-slate-950\/40, .bg-slate-950\/80 {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        .text-white, .text-slate-100, .text-slate-200, .text-slate-300 { color: #0f172a !important; }
+        .text-slate-400, .text-slate-500 { color: #475569 !important; }
         button, a { display: none !important; }
-        .text-emerald-400 { color: #059669 !important; }
-        .text-rose-500 { color: #dc2626 !important; }
-        .text-amber-400 { color: #d97706 !important; }
+        .text-emerald-400, .text-emerald-500 { color: #047857 !important; }
+        .text-rose-500, .text-rose-400 { color: #b91c1c !important; }
+        .text-amber-400 { color: #b45309 !important; }
+        .text-indigo-400, .text-indigo-300 { color: #4338ca !important; }
+        .shadow-xl, .shadow-2xl { box-shadow: none !important; }
+        table, tr, td, th { border-color: #cbd5e1 !important; }
     }
 </style>
 {% endblock %}
